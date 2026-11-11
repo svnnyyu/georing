@@ -8,8 +8,10 @@ Run by hand from the project root (not at runtime), after `npm install`:
 Downloads the Natural Earth shapefiles into pipeline/raw/ne/ (git-ignored), then uses
 mapshaper (an npm dev dependency) to convert them to quantized TopoJSON:
 
-    world-110m.json  objects: land, countries          (whole-globe view)
-    world-50m.json   objects: land, countries, lakes   (zoomed in)
+    world-110m.json     placeholder while the others load
+    world-50m-lo.json   1:50m simplified, all islands and lakes kept (zoomed out)
+    world-50m.json      full 1:50m (zoomed in)
+  each with objects land, countries and lakes
 
 Countries keep two properties: cc (from ISO_A2_EH, because plain ISO_A2 is -99 for
 France, Norway and a few others) and name. See docs/SPEC.md -> Globe -> Detail levels.
@@ -30,9 +32,13 @@ OUT = ROOT / "public" / "data" / "geo"
 NE_URL = "https://naciscdn.org/naturalearth/{scale}/{theme}/{name}.zip"
 QUANTIZATION = 100_000
 
-LAYERS = {
-    "110m": [("land", "physical"), ("countries", "cultural")],
-    "50m": [("land", "physical"), ("countries", "cultural"), ("lakes", "physical")],
+LAYERS = [("land", "physical"), ("countries", "cultural"), ("lakes", "physical")]
+# Output name -> (Natural Earth scale, simplification). "50m-lo" keeps every island and lake
+# of 1:50m but drops most vertices, for fast drawing when zoomed out.
+OUTPUTS = {
+    "110m": ("110m", None),
+    "50m-lo": ("50m", "12%"),
+    "50m": ("50m", None),
 }
 NE_NAMES = {"land": "land", "countries": "admin_0_countries", "lakes": "lakes"}
 
@@ -53,14 +59,17 @@ def shapefile(scale: str, layer: str, theme: str) -> Path:
     return shp
 
 
-def build(scale: str) -> Path:
-    out = OUT / f"world-{scale}.json"
-    inputs = [str(shapefile(scale, layer, theme)) for layer, theme in LAYERS[scale]]
-    names = ",".join(layer for layer, _ in LAYERS[scale])
-    others = ",".join(layer for layer, _ in LAYERS[scale] if layer != "countries")
+def build(name: str) -> Path:
+    scale, simplify = OUTPUTS[name]
+    out = OUT / f"world-{name}.json"
+    inputs = [str(shapefile(scale, layer, theme)) for layer, theme in LAYERS]
+    names = ",".join(layer for layer, _ in LAYERS)
+    others = ",".join(layer for layer, _ in LAYERS if layer != "countries")
+    simplify_args = ["-simplify", simplify, "keep-shapes"] if simplify else []
     cmd = [
         "npx", "--no-install", "mapshaper",
         "-i", *inputs, "combine-files", "encoding=utf8",
+        *simplify_args,
         "-rename-layers", names,
         "-each", "cc = ISO_A2_EH, name = NAME", "target=countries",
         "-filter-fields", "cc,name", "target=countries",
@@ -88,8 +97,8 @@ def report(path: Path) -> None:
 
 def main() -> None:
     OUT.mkdir(parents=True, exist_ok=True)
-    for scale in LAYERS:
-        report(build(scale))
+    for name in OUTPUTS:
+        report(build(name))
 
 
 if __name__ == "__main__":

@@ -18,6 +18,12 @@
   --correct: #5fe08a;
   --wrong: #ff5c6c;
   --outside: #f5d547;
+  --graticule: rgba(59, 82, 120, 0.35);
+
+  /* Globe line widths (CSS px; the renderer reads these) */
+  --globe-coast-width: 1;
+  --globe-border-width: 0.8;
+  --globe-graticule-width: 0.6;
 
   /* Type (web fonts are loaded in the milestone 8 styling pass) */
   --font-display: 'Pixelify Sans', 'Silkscreen', monospace;

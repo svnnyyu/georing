@@ -182,7 +182,10 @@ The globe is drawn by hand with [d3-geo](https://d3js.org/d3-geo) (orthographic 
 
 ### Interaction
 
-- Drag to rotate (versor dragging, so the globe turns naturally at any angle). Scroll or pinch to zoom, from the whole Earth down to about a 100 km wide view.
+- North always stays up. Dragging sideways spins the Earth around its own axis (any amount); dragging up or down tilts the view between the poles but never past them, so the globe can't turn upside down. Sideways speed is divided by cos(latitude) (capped near the poles) so the centre follows the pointer.
+- A drag released while still moving keeps spinning and slows down (momentum, `INERTIA` in `config.ts`). A drag that stopped before release doesn't. Speed is in screen pixels, so it covers fewer degrees when zoomed in.
+- Trackpad two-finger swipes pan in both directions (sideways spins, up/down tilts); macOS supplies their momentum. Pinch (ctrl+wheel) and mouse wheels zoom toward the pointer; double-click zooms in. Swipe vs mouse wheel is decided once per burst of wheel events (`WHEEL` in `config.ts`): wheels that report lines, or large whole-number steps with no sideways part, count as a mouse.
+- Zoom ranges from the whole Earth down to about a 100 km wide view.
 - Smooth camera moves: fly to the start city at game start, then zoom out to fit each new ring with its outer edge at about 80% of the shorter screen side.
 - Works with mouse and touch.
 
@@ -190,8 +193,8 @@ The globe is drawn by hand with [d3-geo](https://d3js.org/d3-geo) (orthographic 
 
 1. Ocean: the sphere filled with the ocean colour, plus a faint graticule (10° lines).
 2. Land fill.
-3. Lakes (only when zoomed in).
-4. Country borders: hidden on the whole-Earth view, fading in as the player zooms.
+3. Lakes, at every zoom (more appear at higher detail).
+4. Country borders, at every zoom: fainter on the whole-Earth view, full strength from `BORDER_OPACITY.fullAtZoom`.
 5. Hint country highlight (outline + tint).
 6. Current ring: a donut filled with a translucent accent and stroked on both edges. Ring 1 is a filled circle. Earlier rings are drawn as faint outlines only.
 7. Hint area circle (dashed).
@@ -199,7 +202,19 @@ The globe is drawn by hand with [d3-geo](https://d3js.org/d3-geo) (orthographic 
 
 ### Detail levels
 
-Use Natural Earth 1:110m when the whole globe is visible and switch to 1:50m when zoomed in. Load 1:10m lazily, and only if 1:50m looks too coarse at close zoom. Join countries to cities by the `ISO_A2_EH` field: the plain `ISO_A2` field has `-99` for a few countries (France and Norway among them).
+Islands, lakes and borders show at every zoom, with more detail as the player zooms in:
+
+- `world-50m-lo.json`: 1:50m simplified with mapshaper (`-simplify 12% keep-shapes`): every island, lake and border, about a third of the size. Used when zoomed out; loads at startup.
+- `world-50m.json`: full 1:50m, used from `DETAIL_50M_MIN_ZOOM` (4) up; loads the first time it's needed.
+- `world-110m.json`: a tiny placeholder shown only until the others arrive. Load 1:10m lazily, and only if 1:50m looks too coarse at close zoom. Join countries to cities by the `ISO_A2_EH` field: the plain `ISO_A2` field has `-99` for a few countries (France and Norway among them).
+
+### Drawing performance (from milestone 4)
+
+- Each polygon and border line gets a bounding circle when a detail level loads (`ui/globe/layers.ts`); a frame only traces shapes that overlap the visible part of the globe.
+- The projection's clip circle shrinks to just enclose the screen when zoomed in (instead of the whole hemisphere), so d3 drops far-away vertices before projecting them.
+- Adaptive resampling (`RESAMPLE_PRECISION_PX`) is on for the graticule, the rim and rings, whose long lines would otherwise become straight chords, and off for the map layers, whose edges are already short.
+- Coastlines are drawn separately from the land fill, skipping the artificial edges Natural Earth adds where it cuts polygons at the 180° meridian and closes Antarctica at the pole. The fill is also outlined in the land colour to hide hairline gaps along those cuts.
+- Measured in the in-app browser: about 5–9 ms per frame for the whole globe (50m-lo) and 5–15 ms zoomed in with full 1:50m.
 
 ### Drawing rings
 

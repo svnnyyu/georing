@@ -36,9 +36,42 @@ export const SUGGESTIONS_MIN_CHARS = 2;
 export const SUGGESTIONS_MAX = 6;
 
 // --- Globe camera ---
-export const RING_FIT_FRACTION = 0.8; // outer ring edge vs shorter screen side
-export const MIN_VIEW_WIDTH_KM = 100;
+export const RING_FIT_FRACTION = 0.8; // outer ring diameter vs shorter screen side
+export const MIN_VIEW_WIDTH_KM = 100; // closest zoom: this many km across the shorter side
 export const GRATICULE_STEP_DEG = 10;
+export const GLOBE_FIT_FRACTION = 0.9; // globe diameter vs shorter screen side, whole-Earth view
+export const GLOBE_MIN_ZOOM = 0.8; // furthest zoom out, relative to the whole-Earth view
+export const GLOBE_START_VIEW = { lat: 20, lon: 10 } as const;
+export const FLY_DURATION_MS = { min: 700, max: 2600, perRadian: 900, perZoomDoubling: 120 } as const;
+
+// --- Globe motion (north stays up; see ui/globe/motion.ts) ---
+export const MAX_CENTER_LAT = 90; // the view can tilt up to a pole, never past it
+export const MIN_LON_SPEED_COS = 0.25; // caps sideways spin speed near the poles
+export const INERTIA = {
+  sampleWindowMs: 100, // velocity is measured over the last part of a drag
+  minStartSpeed: 0.15, // px/ms: slower releases just stop
+  maxSpeed: 5, // px/ms
+  decayMs: 350, // velocity falls to 1/e in this time
+  stopSpeed: 0.01, // px/ms
+} as const;
+// Wheel events: trackpad two-finger swipes pan, mouse wheels and pinches (ctrl+wheel) zoom.
+export const WHEEL = {
+  burstGapMs: 150, // events closer than this belong to one gesture, classified once
+  mouseMinDelta: 50, // integer deltas at least this big (with no sideways part) are a mouse wheel
+  lineHeightPx: 16, // for wheels that report lines instead of pixels
+} as const;
+
+// --- Globe detail levels (zoom is relative to the whole-Earth view) ---
+// Zoomed out: simplified 1:50m ("50m-lo", every island and lake, fewer points). From this
+// zoom up: full 1:50m. 1:110m is only shown for the moment before those load.
+export const DETAIL_50M_MIN_ZOOM = 4;
+// Borders always show; fainter on the whole-Earth view, full strength from fullAtZoom.
+export const BORDER_OPACITY = { min: 0.5, max: 1, fullAtZoom: 3 } as const;
+export const VIEW_INFO_INTERVAL_MS = 250; // how often the globe reports zoom/frame time
+// d3-geo adaptive resampling (curving long edges), in px. Used for the graticule, the rim and
+// (later) rings; the map layers skip it because their edges are already short.
+export const RESAMPLE_PRECISION_PX = 0.5;
+export const CLIP_MARGIN_DEG = 0.5; // extra clip radius beyond the screen corners
 
 // --- Storage ---
 export const STORAGE_KEYS = {

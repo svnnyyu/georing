@@ -19,6 +19,7 @@ A browser geography game: guess the most populous city inside rings drawn around
 
 - `npm install` — install dependencies (after cloning or when `package.json` changes)
 - `npm run dev` — dev server at http://localhost:5173
+- `npm run dev:phone` — same, but reachable from a phone on the same Wi-Fi (open the "Network" URL it prints)
 - `npm test` — run unit tests once (`npm run test:watch` to re-run on save)
 - `npm run typecheck` — TypeScript check
 - `npm run build` — production build into `dist/`

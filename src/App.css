@@ -1,0 +1,17 @@
+.app {
+  position: fixed;
+  inset: 0;
+  overflow: hidden;
+}
+
+.app-error {
+  position: absolute;
+  bottom: var(--space-4);
+  left: var(--space-4);
+  right: var(--space-4);
+  padding: var(--space-3);
+  background: var(--surface);
+  border: var(--border-width) solid var(--wrong);
+  color: var(--wrong);
+  font-family: var(--font-body);
+}
