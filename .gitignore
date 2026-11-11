@@ -1,0 +1,25 @@
+# Dependencies and build output
+node_modules/
+dist/
+coverage/
+*.tsbuildinfo
+.vite/
+
+# Data pipeline downloads (large, re-downloadable)
+pipeline/raw/
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# Local env and editor/OS files
+*.local
+.env
+.env.*
+.DS_Store
+.vscode/*
+!.vscode/extensions.json
+.idea/
+npm-debug.log*

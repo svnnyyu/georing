@@ -1,0 +1,44 @@
+// Every tunable number in the game lives here (see docs/SPEC.md).
+// Nothing tunable should be hard-coded anywhere else.
+
+// --- Geometry ---
+export const EARTH_RADIUS_KM = 6371;
+export const RING_CAP = 10;
+
+// --- Setup sliders: [min, max, step, default] ---
+export const RING_WIDTH_KM = { min: 50, max: 300, step: 50, default: 100 } as const;
+export const RING_COUNT = { min: 1, max: RING_CAP, step: 1, default: 3 } as const;
+export const GUESSES_PER_RING = { min: 3, max: 5, step: 1, default: 4 } as const;
+
+// --- City data ---
+export const MIN_CITY_POPULATION = 15_000;
+export const WELL_KNOWN_POPULATION = 500_000; // or a national capital
+export const REVEAL_TOP_N = 5; // cities listed in the reveal panel
+
+// --- Hints ---
+export const HINTS_PER_RING = 3;
+export const HINT_AREA_START_FRACTION = 0.25; // of ring width
+export const HINT_AREA_MAX_CITIES = 5;
+export const HINT_AREA_MIN_RADIUS_KM = 10;
+export const HINT_AREA_MAX_OFFSET_FRACTION = 0.5; // of circle radius
+
+// --- Guess matching (max edit distance by name length) ---
+export const FUZZY_THRESHOLDS = [
+  { minLength: 4, maxLength: 5, maxDistance: 1 },
+  { minLength: 6, maxLength: 9, maxDistance: 2 },
+  { minLength: 10, maxLength: Infinity, maxDistance: 3 },
+] as const;
+export const SUGGESTIONS_MIN_CHARS = 2;
+export const SUGGESTIONS_MAX = 6;
+
+// --- Globe camera ---
+export const RING_FIT_FRACTION = 0.8; // outer ring edge vs shorter screen side
+export const MIN_VIEW_WIDTH_KM = 100;
+export const GRATICULE_STEP_DEG = 10;
+
+// --- Storage ---
+export const STORAGE_KEYS = {
+  history: 'ringgame.v1.history',
+  settings: 'ringgame.v1.settings',
+} as const;
+export const HISTORY_CAP = 500;

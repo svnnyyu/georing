@@ -1,0 +1,35 @@
+/* Every colour, font and spacing value lives here (see docs/SPEC.md → Visual style).
+   No colour values anywhere else — the globe renderer reads these variables too. */
+:root {
+  /* Palette */
+  --bg: #0a0f1c;
+  --surface: #111a2e;
+  --border: #2a3a5c;
+  --text: #e6ecf5;
+  --text-dim: #8090ad;
+  --ocean: #0d1830;
+  --land: #1f2c45;
+  --coast: #3b5278;
+  --country-line: #33466a;
+  --accent: #5fd4e6;
+  --ring: #5fd4e6;
+  --ring-fill-opacity: 0.15;
+  --hint: #c792ea;
+  --correct: #5fe08a;
+  --wrong: #ff5c6c;
+  --outside: #f5d547;
+
+  /* Type (web fonts are loaded in the milestone 8 styling pass) */
+  --font-display: 'Pixelify Sans', 'Silkscreen', monospace;
+  --font-body: 'IBM Plex Mono', ui-monospace, monospace;
+  --label-letter-spacing: 0.2em;
+
+  /* Spacing and sizes */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-6: 24px;
+  --border-width: 2px;
+  --marker-size: 8px;
+}
