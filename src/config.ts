@@ -21,6 +21,7 @@ export const HINT_AREA_START_FRACTION = 0.25; // of ring width
 export const HINT_AREA_MAX_CITIES = 5;
 export const HINT_AREA_MIN_RADIUS_KM = 10;
 export const HINT_AREA_MAX_OFFSET_FRACTION = 0.5; // of circle radius
+export const HINT_AREA_SHRINK_FACTOR = 0.8; // radius multiplier per shrink step
 
 // --- Guess matching (max edit distance by name length) ---
 export const FUZZY_THRESHOLDS = [
@@ -28,6 +29,9 @@ export const FUZZY_THRESHOLDS = [
   { minLength: 6, maxLength: 9, maxDistance: 2 },
   { minLength: 10, maxLength: Infinity, maxDistance: 3 },
 ] as const;
+// Same-named cities outside the ring count as a tie (picker shown) only if their population
+// is at least this share of the largest one's: Springfield MO/MA/IL tie, Paris FR/TX doesn't.
+export const AMBIGUOUS_POP_RATIO = 0.5;
 export const SUGGESTIONS_MIN_CHARS = 2;
 export const SUGGESTIONS_MAX = 6;
 

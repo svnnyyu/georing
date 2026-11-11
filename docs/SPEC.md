@@ -79,7 +79,7 @@ All of this shows as soon as a city is guessed. A difficulty setting that hides 
 Hints unlock in a fixed order, each usable once per ring. They do not cost guesses (there is no scoring yet), but hint use is recorded in history.
 
 1. **Country:** the answer's country is outlined and tinted, and its name is shown.
-2. **Area circle:** a circle that contains the answer is drawn. Its centre is offset from the answer in a random direction by up to half its radius, so the answer is never simply in the middle. Its radius starts at 25% of the ring width and shrinks until it holds at most 5 eligible cities, with a minimum of 10 km. Dense regions therefore get a tighter circle.
+2. **Area circle:** a circle that contains the answer is drawn. Its centre is offset from the answer in a random direction by up to half its radius, so the answer is never simply in the middle. Its radius starts at 25% of the ring width and shrinks (×0.8 per step) until it holds at most 5 eligible cities, with a minimum of 10 km. Dense regions therefore get a tighter circle.
 3. **First letter:** shows "Starts with T", using the first letter of the city's display name.
 
 ### End of game
@@ -159,7 +159,7 @@ A guess is resolved to one city by normalizing it, checking exact names and alia
 1. **Normalize** both the guess and every name: lowercase, strip accents (Unicode NFD, then drop combining marks), turn hyphens and apostrophes into spaces, drop other punctuation, collapse whitespace. "São-Paulo" and "sao paulo" become the same string. Precompute normalized names once at load.
 2. **Exact match** on normalized `name`, `ascii` or any alias. Search cities in the current ring first; if there's no hit, search all cities so the game can say "Not in this ring".
 3. **Fuzzy match** when nothing matches exactly, using [Fuse.js](https://www.fusejs.io/) or a small Damerau-Levenshtein function (which counts letter insertions, deletions, substitutions and swaps). Accept the best match if its edit distance is ≤ 1 for names of 4–5 letters, ≤ 2 for 6–9 letters, and ≤ 3 for 10 or more. Prefer in-ring candidates.
-4. **Ambiguity:** if two cities tie, prefer the in-ring one, then the larger population. If two in-ring cities share a name, the dropdown shows `admin1` and country to tell them apart.
+4. **Ambiguity:** exact display-name matches beat alias matches. If several cities match, prefer the in-ring one. If two or more in-ring cities share the name, a picker shows them with `admin1` and country. If none is in the ring, the largest wins unless another is at least half its size (`AMBIGUOUS_POP_RATIO`), in which case the picker lists those similar-sized ones: "Springfield" (Missouri, Massachusetts, Illinois) asks, "Paris" (France 2.1M, Texas 25k) and "Newark" (New Jersey over Ohio) don't. In Metro mode every match is then mapped to its metro's main city.
 
 ### Suggestions dropdown (setting, off by default)
 
@@ -316,6 +316,7 @@ ring-city-game/
 │   ├── config.ts             every tunable number
 │   ├── core/                 game logic: no DOM, no React
 │   │   ├── types.ts
+│   │   ├── data.ts           index the data; "units" (city, or metro in Metro mode)
 │   │   ├── geo.ts            haversine, ring membership
 │   │   ├── rings.ts          ring list + answers from settings
 │   │   ├── game.ts           game state + actions
