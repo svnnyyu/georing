@@ -108,3 +108,32 @@ geonameid,field,value,note
 1791748,remove,,"Wanxian: old name of Wanzhou, duplicate of 12358576"
 12358576,pop,1078149,Wanzhou District 2020 census urban area (Wikipedia list of cities in China by population)
 11838258,pop,413117,Bayannur 2020 census urban area (Wikipedia list of cities in China by population); GeoNames had the prefecture total
+7602670,remove,,Zhu Cheng City: duplicate of Zhucheng (1783988) at the same point
+1811619,remove,,Ezhou: duplicate of E’zhou (6642286) 5 km away
+2033824,remove,,Xilin Hot: duplicate of Xilinhot (8054802) 4 km away
+1817720,remove,,"Shangyu: Shaoxing district, counted in Shaoxing's urban figure (citypopulation.de)"
+1802875,name,Liuyang,"Guankou is the seat of Liuyang, which is otherwise missing from GeoNames' list"
+1802875,ascii,Liuyang,
+1802875,pop,886257,Liuyang 2020 census urban population (citypopulation.de Hunan page)
+1808316,name,Yiyang,"Heshan is Yiyang's central district, and Yiyang is otherwise missing"
+1808316,ascii,Yiyang,
+1808316,pop,758408,Yiyang 2020 census urban population (citypopulation.de)
+1793036,name,Tengzhou,"Chengtangcun sits at Tengzhou's centre, and Tengzhou is otherwise missing"
+1793036,ascii,Tengzhou,
+1793036,pop,937438,Tengzhou 2020 census urban population (citypopulation.de)
+1798425,name,Pujiang,"GeoNames 'Puyang, Zhejiang' is at Pujiang county seat (Puyang is in Henan)"
+1798425,ascii,Pujiang,
+1798425,pop,209274,Pujiang 2020 census urban population (citypopulation.de Zhejiang page)
+1809412,name,Yongkang,"Guli sits at Yongkang's centre, and Yongkang is otherwise missing"
+1809412,ascii,Yongkang,
+1809412,pop,638563,Yongkang 2020 census urban population (citypopulation.de Zhejiang page)
+1812621,name,Haiyang,"Dongcun is the seat of Haiyang (Shandong), which is otherwise missing"
+1812621,ascii,Haiyang,
+1812621,pop,293099,Haiyang 2020 census urban population (citypopulation.de Shandong page)
+12492662,name,Mianzhu,"GeoNames name was 'Mianzhu, Deyang, Sichuan'"
+12492662,ascii,Mianzhu,
+12492662,pop,232761,Mianzhu 2020 census urban population (citypopulation.de Sichuan page)
+1176615,metroMain,1,Islamabad: capital; main city of its urban centre instead of larger Rawalpindi
+285787,metroMain,1,Kuwait City: capital; main city of its urban centre instead of Hawalli
+292223,lat,25.2048,"Dubai: GeoNames point is in the desert south of the city; moved to downtown so it joins its urban centre"
+292223,lon,55.2708,

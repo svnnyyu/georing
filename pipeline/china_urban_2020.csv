@@ -469,8 +469,8 @@ Fuping,Hebei,100321
 Chicheng,Hebei,100137
 # Second source, for prefecture-level cities missing from the Wikipedia tables:
 # https://www.citypopulation.de/en/china/cities/ (2020 census urban population, counted on
-# district/county level). That table covers every city above 750,000, so build_cities.py caps
-# Chinese cities that are on neither list at CN_UNLISTED_CAP. Retrieved 2026-11-11.
+# district/county level). That table covers every city above 750,000. Gaps are filled from
+# china_urban_2020_provinces.csv. Retrieved 2026-11-11.
 Shiyan,Hubei,954914
 Suzhou,Anhui,920722
 Bozhou,Anhui,750569

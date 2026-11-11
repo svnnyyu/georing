@@ -23,6 +23,7 @@ Every ring in a game has the same width, set by the player, and the target in ea
 | Number of rings | Slider, 1–10 | 3 |
 | Guesses per ring | Slider, 3–5 | 4 |
 | Suggestions dropdown | On / Off (see Guess matching) | Off |
+| Population measure | City (city proper) / Metro (urban area, see Metro mode) | City |
 | Mode | Population (now); Density (later, shown disabled) | Population |
 
 ### Ring geometry
@@ -42,6 +43,15 @@ Every ring in a game has the same width, set by the player, and the target in ea
 - An empty ring (all ocean, for example) shows "No cities in this ring" and advances automatically. It is recorded as empty, not as a miss.
 - Random start cities are drawn from the well-known pool: population ≥ 500,000 or a national capital.
 
+### Metro mode
+
+The Population measure setting switches what "population" means for the whole game.
+
+- **City (default):** each city counts on its own, with its city-proper population.
+- **Metro:** cities inside the same GHSL urban centre merge into one metro, represented by its main city (Newark and Jersey City become part of New York City). The metro sits at its main city's point for ring membership and uses the metro population. Cities outside every urban centre (mostly towns under 50,000) count on their own with their city population.
+- In Metro mode the start city's whole metro is excluded from ring 1, and typing a member city's name autocorrects to its metro's main city (see Guess matching).
+- Hover cards always show both figures, with the active one highlighted.
+
 ### Guessing
 
 1. The globe flies to the start city and draws ring 1.
@@ -58,7 +68,7 @@ Every ring in a game has the same width, set by the player, and the target in ea
 Hovering over any guessed city's marker (tapping on phones) shows a small card:
 
 - Name, state or province, and country. Flags come later.
-- Population.
+- Population: both the city figure and the metro figure (when the city is in a metro), with the one for the current Population measure highlighted. In Metro mode the card is for the metro's main city and also says how many cities the metro merges.
 - Rank in the ring, written as "#2 of 14" (2nd most populous of the 14 cities in this ring).
 - For a yellow (outside) guess, distance instead of rank, for example "120 km outside".
 
@@ -86,18 +96,20 @@ City data comes from GeoNames (city-proper populations), map shapes come from Na
 | --- | --- | --- | --- |
 | [GeoNames](https://download.geonames.org/export/dump/) | Cities, populations, coordinates, alternate names | `cities15000.zip`, `countryInfo.txt`, `admin1CodesASCII.txt` | CC BY 4.0, attribution required |
 | [Natural Earth](https://www.naturalearthdata.com/downloads/) | Land, coastlines, country borders, lakes | Admin 0 countries + land at 1:110m, 1:50m, 1:10m | Public domain |
-| [GHSL](https://human-settlement.emergency.copernicus.eu/download.php) | Density mode and population-fix reference (later) | Urban Centre Database R2024A | Free with citation |
+| [GHSL](https://human-settlement.emergency.copernicus.eu/download.php) | Metro mode (now), Density mode (later), and a check on city figures | Urban Centre Database R2024A V1.2 (`GHS_UCDB_GLOBE_R2024A_V1_2.zip`, 264 MB) | CC BY 4.0, attribution required |
+| [citypopulation.de](https://www.citypopulation.de/) | 2020 census urban populations for Chinese cities | Copied into `pipeline/china_urban_2020*.csv` | Free to use with the source named; check terms before the public deploy |
 
 ### Pipeline (`pipeline/build_cities.py`, run by hand, not at runtime)
 
 1. Download the raw files into `pipeline/raw/`, which is git-ignored.
 2. Keep populated places (feature class `P`) with population ≥ 15,000. Drop feature codes `PPLX` (city sections), `PPLH` (historical), `PPLQ` (abandoned), `PPLW` (destroyed) and `PPLCH` (historical capital).
-3. Fix Chinese populations with `pipeline/china_urban_2020.csv` (2020 census urban-area figures, matched by name + province; sources noted in the file). Chinese cities above 750,000 that are on neither source list are capped at 750,000 (`CN_UNLISTED_CAP`), since the source lists every city above that. Then apply `pipeline/overrides.csv` (columns: geonameid, field, value, note), which wins over everything else. This fixes bad populations and removes entries, each with a note on why.
+3. Fix Chinese populations with 2020 census urban-area figures, matched by name + province, from `pipeline/china_urban_2020.csv` (Wikipedia and citypopulation.de's list of cities over 750,000) and then `pipeline/china_urban_2020_provinces.csv` (citypopulation.de's per-province pages, every city and county seat over 75,000 in 15 provinces), which fills cities the first file lacks. A later file never re-matches a name an earlier one used. Any Chinese city still above 750,000 without a figure is capped at 750,000 (`CN_UNLISTED_CAP`); none are at present. Then apply `pipeline/overrides.csv` (columns: geonameid, field, value, note), which wins over everything else. This fixes bad populations and removes entries, each with a note on why.
 4. Build aliases from GeoNames `alternateNamesV2.zip` (it has language tags, unlike the column in `cities15000`). Keep Latin-script names starting with a capital (or tagged `abbr`), deduplicated after normalization, at most 10 per city, ranked: English, abbreviations, the country's own languages, major European languages (fr, de, es, pt, it, nl), then at most 3 untagged names. Other languages are skipped because they are mostly transliterations. Then merge `pipeline/aliases_extra.csv` for abbreviations GeoNames lacks (most, such as NYC, LA, SF, KL, HCMC and CDMX, are already there; DC was added).
 5. Flag well-known cities: population ≥ 500,000, or feature code `PPLC` (national capital).
 6. Write `public/data/cities.json` and `public/data/countries.json` (country code → display name + aliases, such as Turkey/Türkiye).
 7. `pipeline/build_geo.py` converts the Natural Earth layers to quantized TopoJSON with [mapshaper](https://github.com/mbloch/mapshaper) (an npm dev dependency): `world-110m.json` (land, countries) and `world-50m.json` (land, countries, lakes) in `public/data/geo/`. Countries keep `cc` (from `ISO_A2_EH`) and `name`. `npm run data` runs both scripts.
-8. Print a sanity report: total city count, the 25 most populous cities, every city above 10 million, and the ring answers for a few test start cities (New York, London, Tokyo, Lagos, Chongqing).
+8. Join cities to GHSL urban centres (`pipeline/metros.py`): a city is in a metro if its point lies inside the centre's outline. Cities of 100,000+ within 5 km of an outline are snapped to it (GeoNames points are sometimes just outside). Each metro's main city is its most populous member, unless the GHSL name matches a member with at least half that population ("Guangzhou" over slightly larger Shenzhen), or `overrides.csv` sets `metroMain` (Islamabad, Kuwait City). A metro's population is the GHSL 2025 figure, but never less than its main city's (GHSL undercounts some Chinese cities, such as Chengdu at 5.6M against 13.6M census urban). Write `public/data/metros.json`.
+9. Print a sanity report: total city count, the 25 most populous cities, every city above 10 million, and the ring answers for a few test start cities (New York, London, Tokyo, Lagos, Chongqing) in both measures, plus a metro report: the top metros, big cities outside every metro, and cities whose own figure is larger than their metro's (likely district totals).
 
 ### City record (in `cities.json`)
 
@@ -112,16 +124,31 @@ City data comes from GeoNames (city-proper populations), map shapes come from Na
 | `admin1` | State or province name, shown to tell duplicate names apart |
 | `aliases` | Alternate names and abbreviations |
 | `wellKnown` | True if in the random start-city pool |
+| `metro` | GHSL urban-centre id, if the city is inside one (omitted otherwise) |
+
+### Metro record (in `metros.json`)
+
+| Field | Meaning |
+| --- | --- |
+| `id` | GHSL urban-centre id (`ID_UC_G0`) |
+| `name` | GHSL name, for reference (the game shows the main city's name) |
+| `pop` | Metro population used by the game |
+| `ghslPop` | GHSL's own 2025 figure, before the never-below-main-city rule |
+| `main` | GeoNames id of the main city |
+| `cc` | Country of the main city |
+| `members` | Number of cities in the metro |
+
+About 8,100 of GHSL's 11,400 urban centres contain at least one city. The rest (about 350M people in total, mostly small agglomerations in India and Africa) have no city in the list and can't come up in Metro mode.
 
 Expect roughly 25,000–30,000 cities and a file of a few MB, which compresses well and is fine to load once.
 
 ### Known data issues to handle
 
-- **Oversized Chinese "cities":** many GeoNames populations cover whole prefectures, not just Chongqing (22M in GeoNames, 9.6M urban): Chengdu, Xi'an, Harbin, Weifang and about 180 others. These are replaced with 2020 census urban-area figures from `pipeline/china_urban_2020.csv` (about 290 cities) or capped (about 45; see Open decisions).
+- **Oversized Chinese "cities":** many GeoNames populations cover whole prefectures, not just Chongqing (22M in GeoNames, 9.6M urban): Chengdu, Xi'an, Harbin, Weifang and about 180 others. About 500 are replaced with 2020 census urban-area figures. GeoNames also has a few Chinese entries under the wrong name or twice (Guankou for Liuyang, Chengtangcun for Tengzhou, Zhucheng twice); these are renamed or removed in `overrides.csv`. Smaller Chinese cities in the 16 provinces without a per-province list (Liaoning, Xinjiang, Heilongjiang, Hebei, Henan, Guangdong and others) still use GeoNames figures; 44 of them are 300,000 or more.
 - **Boroughs and wards listed as cities:** GeoNames lists some city parts as their own cities. Smaller ones are kept, but parts that showed up as ring answers for the test start cities are removed through `overrides.csv`: New York's five boroughs, all 86 places inside Greater London, Shanghai's 14 urban districts and Shenzhen's Bao'an. If another one shows up as an odd answer in play, remove it the same way.
-- **Other whole-district figures:** some non-Chinese cities also use municipality or district totals (Ho Chi Minh City 14M, Lahore 13M, Kinshasa 16M). Accepted for the prototype.
+- **Other whole-district figures:** GHSL shows that Ho Chi Minh City (14.0M city, 14.6M urban area) and Lahore (13.0M, 14.3M) are not inflated: their boundaries roughly match the built-up city. The metro report's "city larger than its metro" list finds the ones that are, mostly district or county totals in India, Pakistan, Kenya and the Philippines (Kakamega 1.87M against a 125k town, Nowrangapur 1.2M against 60k). Japanese, Korean and Chinese municipalities also appear there because they legitimately include countryside. Not yet corrected; see Open decisions.
 - **Uneven population years:** GeoNames figures come from different census years by country. This is acceptable for a prototype; note it in the credits.
-- **Attribution:** an About/Credits screen must credit GeoNames (CC BY 4.0) and Natural Earth, and name the source of the Chinese urban figures (2020 census via citypopulation.de and Wikipedia).
+- **Attribution:** an About/Credits screen must credit GeoNames (CC BY 4.0) and Natural Earth, GHSL (CC BY 4.0, with the dataset citation from its readme), and name the source of the Chinese urban figures (2020 census via citypopulation.de and Wikipedia).
 
 ## Guess matching
 
@@ -136,7 +163,9 @@ A guess is resolved to one city by normalizing it, checking exact names and alia
 
 ### Suggestions dropdown (setting, off by default)
 
-With the dropdown off, the player types a name and presses Enter, and the steps above resolve it. No list of cities is ever shown while typing. The only exception is a guess that matches two or more cities equally (for example "Springfield"): then a small picker lists just those cities with state and country.
+With the dropdown off, the player types a name and presses Enter (or the submit button), and the steps above resolve it. No list of cities is ever shown while typing. The only exception is a guess that matches two or more cities equally (for example "Springfield"): then a small picker lists just those cities with state and country.
+
+**Autocorrect on Enter (like Krillion):** if the typed text is exactly a city's display name (after normalizing), Enter submits it. Otherwise (a typo, an alias such as "NYC", or in Metro mode a member city such as "Newark"), the first Enter replaces the text in the box with the resolved display name ("Nwe Yokr" → "New York City") without using a guess, and a second Enter submits it. Editing the text after a correction starts over.
 
 With the dropdown on:
 
@@ -277,6 +306,7 @@ ring-city-game/
 │   ├── overrides.csv
 │   ├── aliases_extra.csv
 │   ├── china_urban_2020.csv  census urban figures for Chinese cities
+│   ├── china_urban_2020_provinces.csv  same, per province (fills gaps)
 │   └── raw/                  downloads (git-ignored)
 ├── public/data/              pipeline output (committed)
 │   ├── cities.json
@@ -373,11 +403,10 @@ The core should allow `mode` to swap the ranking field without other changes, so
 - Scoring (fewer guesses and hints mean more points), with a score chart on the summary screen like Krillion's and Eraly's.
 - Difficulty setting: Normal shows population and rank on the info card, Hard hides rank, Harder hides both until the ring ends.
 - Whole-world rings: no 10-ring cap, with rings continuing until they close at the point on the opposite side of the Earth from the start city (about 20,000 km away).
-- An "Urban area" mode using GHSL populations instead of city proper.
 - A population density map layer on the globe, for example [Kontur Population](https://data.humdata.org/dataset/kontur-population-dataset) hexagons, which would suit the pixel style.
 - Daily puzzle with a shareable result.
 - Sound effects and ambient pixel scenery.
 
 ### Open decisions
 
-- **Capped Chinese cities (from milestone 2):** about 45 Chinese cities have GeoNames populations above 750,000 but appear on neither urban-population source, so their real urban figure is below 750,000 but unknown (for example Lüliang, Bazhong, Qingyang, Liupanshui). They are capped at 750,000 for now. Options: keep the cap, look up each figure by hand, or find a fuller source.
+- **District-level city figures outside China:** about 40 cities of 300,000+ have a city figure several times their own GHSL urban centre (see the metro report). Options: fix the worst by hand in `overrides.csv` using citypopulation.de country pages, or leave them since Metro mode already handles them consistently.

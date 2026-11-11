@@ -23,6 +23,8 @@ import urllib.request
 import zipfile
 from pathlib import Path
 
+import metros as metro_join
+
 ROOT = Path(__file__).resolve().parent.parent
 PIPELINE = ROOT / "pipeline"
 RAW = PIPELINE / "raw"
@@ -42,6 +44,10 @@ EARTH_RADIUS_KM = 6371.0
 # this (citypopulation.de lists every city above it), but GeoNames often gives the whole
 # prefecture. Interim upper bound until real figures are found; see docs/SPEC.md.
 CN_UNLISTED_CAP = 750_000
+# Metro join (see metros.py): big cities whose point sits just outside an urban centre's
+# edge are attached to it if within this distance.
+METRO_SNAP_MIN_POP = 100_000
+METRO_SNAP_KM = 5
 
 
 # --- Shared numbers come from src/config.ts (the single place for tunables) ---
@@ -117,17 +123,22 @@ def read_extra_aliases() -> dict[int, list[str]]:
 
 
 def city_key(name: str) -> str:
+    """Matching key for Chinese names: 'Tai’an', 'Taian' and 'Ordos City' -> 'taian', 'ordos'."""
     n = normalize(name)
-    for suffix in (" city", " district"):
+    for suffix in (" city", " district", " county"):
         if n.endswith(suffix):
             n = n[: -len(suffix)]
-    return n
+    return n.replace(" ", "")
 
 
-def read_china_urban() -> dict[tuple[str, str], int]:
-    """(normalized name, normalized province) -> 2020 census urban population."""
+# Sources of Chinese urban figures, in priority order (the first one that has a city wins).
+CHINA_SOURCES = ["china_urban_2020.csv", "china_urban_2020_provinces.csv"]
+
+
+def read_china_urban(filename: str) -> dict[tuple[str, str], int]:
+    """(city key, normalized province) -> 2020 census urban population."""
     out: dict[tuple[str, str], int] = {}
-    with open(PIPELINE / "china_urban_2020.csv", encoding="utf-8") as f:
+    with open(PIPELINE / filename, encoding="utf-8") as f:
         lines = (line for line in f if not line.startswith("#"))
         for row in csv.DictReader(lines):
             province = row["city"] if row["province"] == "municipality" else row["province"]
@@ -138,26 +149,32 @@ def read_china_urban() -> dict[tuple[str, str], int]:
 
 
 def apply_china_urban(cities: list[dict], admin1: dict[str, str],
-                      overrides: dict[int, list[tuple[str, str]]]) -> tuple[int, int]:
+                      overrides: dict[int, list[tuple[str, str]]]) -> tuple[list[int], int]:
     """Replace prefecture-wide Chinese populations with urban-area figures.
-    Returns (replaced, capped). overrides.csv still wins."""
-    table = read_china_urban()
+    Returns (replaced per source, capped). overrides.csv still wins."""
     by_key: dict[tuple[str, str], list[dict]] = {}
     for c in cities:
         if c["cc"] == "CN":
             province = admin1.get(f"CN.{c['admin1Code']}", "")
             by_key.setdefault((city_key(c["name"]), normalize(province)), []).append(c)
-    replaced = capped = 0
+    replaced: list[int] = []
     matched: set[int] = set()
-    for key, pop in table.items():
-        hits = by_key.get(key)
-        if not hits:
-            continue
-        city = max(hits, key=lambda c: c["pop"])
-        matched.add(city["id"])
-        if city["id"] not in overrides:
-            city["pop"] = pop
-            replaced += 1
+    used_keys: set[tuple[str, str]] = set()
+    for source in CHINA_SOURCES:
+        count = 0
+        for key, pop in read_china_urban(source).items():
+            # A later source never re-matches a name an earlier one used: it would land on
+            # an unrelated namesake (e.g. a second "Changzhi" 160 km away).
+            if key in used_keys or not by_key.get(key):
+                continue
+            used_keys.add(key)
+            city = max(by_key[key], key=lambda c: c["pop"])
+            matched.add(city["id"])
+            if city["id"] not in overrides:
+                city["pop"] = pop
+                count += 1
+        replaced.append(count)
+    capped = 0
     for c in cities:
         if (c["cc"] == "CN" and c["id"] not in matched and c["id"] not in overrides
                 and c["pop"] > CN_UNLISTED_CAP):
@@ -220,6 +237,8 @@ def read_cities(overrides: dict[int, list[tuple[str, str]]]) -> list[dict]:
                     city[field] = float(value)
                 elif field in ("name", "ascii", "cc"):
                     city[field] = value
+                elif field == "metroMain":
+                    city["metroMain"] = True
                 else:
                     sys.exit(f"overrides.csv: unknown field {field!r} for {gid}")
             if not removed:
@@ -323,7 +342,11 @@ def main() -> None:
     admin1 = read_admin1()
     cities = read_cities(overrides)
     replaced, capped = apply_china_urban(cities, admin1, overrides)
-    print(f"China: {replaced} populations set from census urban figures, {capped} capped at {CN_UNLISTED_CAP:,}")
+    per_source = ", ".join(f"{n} from {s}" for n, s in zip(replaced, CHINA_SOURCES))
+    print(f"China: census urban figures set ({per_source}); {capped} capped at {CN_UNLISTED_CAP:,}")
+    for c in cities:
+        if c["cc"] == "CN" and c["pop"] == CN_UNLISTED_CAP:
+            print(f"  capped: {c['name']} ({admin1.get('CN.' + c['admin1Code'], '')})")
     cities = [c for c in cities if c["pop"] >= MIN_POP]
     print(f"Kept {len(cities):,} cities (population >= {MIN_POP:,})")
 
@@ -346,8 +369,14 @@ def main() -> None:
             "admin1": admin1.get(f"{c['cc']}.{c['admin1Code']}", ""),
             "aliases": aliases,
             "wellKnown": c["pop"] >= WELL_KNOWN_POP or c["fcode"] == "PPLC",
+            **({"metroMain": True} if c.get("metroMain") else {}),
         })
     records.sort(key=lambda r: -r["pop"])
+
+    metros, metro_stats = metro_join.assign_metros(records, normalize, METRO_SNAP_MIN_POP, METRO_SNAP_KM)
+    for r in records:
+        r.pop("metroMain", None)
+    metros.sort(key=lambda m: -m["pop"])
 
     used_ccs = {r["cc"] for r in records}
     country_records = {}
@@ -375,8 +404,11 @@ def main() -> None:
         json.dump(records, f, ensure_ascii=False, separators=(",", ":"))
     with open(OUT / "countries.json", "w", encoding="utf-8") as f:
         json.dump(country_records, f, ensure_ascii=False, separators=(",", ":"), sort_keys=True)
+    with open(OUT / "metros.json", "w", encoding="utf-8") as f:
+        json.dump(metros, f, ensure_ascii=False, separators=(",", ":"))
 
     report(records, country_records)
+    metro_report(records, metros, metro_stats)
 
 
 def report(records: list[dict], countries: dict) -> None:
@@ -406,6 +438,65 @@ def report(records: list[dict], countries: dict) -> None:
         print(f"  {start['name']} ({start['pop']:,})")
         for line in ring_answers(records, start, 100, 3) + ring_answers(records, start, 300, 4):
             print(line)
+
+
+
+def metro_units(records: list[dict], metros: list[dict]) -> tuple[list[dict], dict[int, dict]]:
+    """Metro mode's candidates: one unit per metro (at its main city's point, with the metro
+    population) plus every city outside a metro (with its own population)."""
+    by_id = {r["id"]: r for r in records}
+    units = []
+    for m in metros:
+        main = by_id[m["main"]]
+        units.append({"id": main["id"], "name": main["name"], "lat": main["lat"], "lon": main["lon"],
+                      "pop": m["pop"], "metro": m["id"]})
+    for r in records:
+        if "metro" not in r:
+            units.append({"id": r["id"], "name": r["name"], "lat": r["lat"], "lon": r["lon"], "pop": r["pop"]})
+    units.sort(key=lambda u: -u["pop"])
+    return units, {m["id"]: m for m in metros}
+
+
+def metro_report(records: list[dict], metros: list[dict], stats: dict) -> None:
+    by_id = {r["id"]: r for r in records}
+    size_kb = (OUT / "metros.json").stat().st_size / 1e3
+    print("\n=== Metro report (GHSL urban centres) ===")
+    print(f"Urban centres: {stats['centres']:,}; with at least one city: {stats['with_cities']:,}; "
+          f"without: {stats['without_cities']:,} ({stats['pop_without_cities'] / 1e6:.0f}M people, not playable "
+          f"in Metro mode). Cities inside a metro: {stats['cities_in_metros']:,} "
+          f"({stats['snapped']} snapped from just outside). metros.json: {size_kb:.0f} KB")
+    print("\nTop 20 metros (main city: metro population / city population):")
+    for m in metros[:20]:
+        main = by_id[m["main"]]
+        label = main["name"] if main["name"] == m["name"] else f"{main['name']} (GHSL: {m['name']})"
+        print(f"  {label}, {m['cc']}: {m['pop']:,} / {main['pop']:,}  [{m['members']} cities]")
+    print("\nCity figure larger than its own metro (likely a district or prefecture total):")
+    metro_by_id = {m["id"]: m for m in metros}
+    flagged = [(r, metro_by_id[r["metro"]]) for r in records
+               if "metro" in r and r["pop"] >= 300_000 and r["pop"] > 1.1 * metro_by_id[r["metro"]]["pop"]]
+    for r, m in sorted(flagged, key=lambda t: -t[0]["pop"] / t[1]["pop"])[:40]:
+        print(f"  {r['name']}, {r['admin1']}, {r['cc']}: city {r['pop']:,} vs metro {m['pop']:,} "
+              f"({r['pop'] / m['pop']:.1f}x)")
+    big_outside = [r for r in records if "metro" not in r and r["pop"] >= 500_000]
+    print(f"\nCities of 500,000+ outside every metro: {len(big_outside)}")
+    for r in big_outside[:20]:
+        print(f"  {r['name']}, {r['admin1']}, {r['cc']}: {r['pop']:,}")
+
+    units, metro_by_id = metro_units(records, metros)
+    print("\nMetro-mode ring answers (100 km x 3 rings):")
+    for gid in (5128581, 2643743, 1850147, 2332459, 1814906):
+        start = by_id.get(gid)
+        if not start:
+            continue
+        own = start.get("metro")
+        centre = by_id[metro_by_id[own]["main"]] if own else start
+        print(f"  {centre['name']} (metro {metro_by_id[own]['pop']:,})" if own else f"  {centre['name']}")
+        for k in (1, 2, 3):
+            inner, outer = (k - 1) * 100, k * 100
+            inside = [u for u in units if u.get("metro") != own and u["id"] != start["id"]
+                      and inner < haversine_km(centre["lat"], centre["lon"], u["lat"], u["lon"]) <= outer]
+            top = ", ".join(f"{u['name']} {u['pop']:,}" for u in inside[:3])
+            print(f"    ring {k} ({inner}-{outer} km, {len(inside)}): {top or 'no cities'}")
 
 
 if __name__ == "__main__":
