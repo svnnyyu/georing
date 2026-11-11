@@ -42,7 +42,9 @@ export const GRATICULE_STEP_DEG = 10;
 export const GLOBE_FIT_FRACTION = 0.9; // globe diameter vs shorter screen side, whole-Earth view
 export const GLOBE_MIN_ZOOM = 0.8; // furthest zoom out, relative to the whole-Earth view
 export const GLOBE_START_VIEW = { lat: 20, lon: 10 } as const;
-export const FLY_DURATION_MS = { min: 700, max: 2600, perRadian: 900, perZoomDoubling: 120 } as const;
+// perSpinRadian: extra time for turning the view around a pole (spin angle × sin(latitude),
+// so it is bounded: at most π × 1 radians, and the total is capped at max anyway).
+export const FLY_DURATION_MS = { min: 700, max: 2600, perRadian: 900, perZoomDoubling: 120, perSpinRadian: 300 } as const;
 
 // --- Globe motion (north stays up; see ui/globe/motion.ts) ---
 export const MAX_CENTER_LAT = 90; // the view can tilt up to a pole, never past it

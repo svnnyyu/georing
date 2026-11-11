@@ -32,7 +32,27 @@ describe('camera scales', () => {
 describe('fly-to path', () => {
   const vp = { width: 1000, height: 1000 };
 
-  it('interpolates along the great circle', () => {
+  it('turns smoothly when leaving a pole, with a finite duration', () => {
+    const from = { center: [10, 90] as [number, number], scale: 400 };
+    const to = { center: [139.7, 35.7] as [number, number], scale: 9000 };
+    const path = flyPath(from, to, vp);
+    expect(Number.isFinite(path.durationMs)).toBe(true);
+    expect(path.durationMs).toBeLessThanOrEqual(2600);
+    // Early in the flight the longitude has only moved a little (no snap to the target).
+    const early = path.at(0.05).center;
+    expect(Math.abs(early[0] - 10)).toBeLessThan(5);
+    // It turns steadily: longitude moves monotonically towards the target.
+    let prev = 10;
+    for (let t = 0.1; t <= 1; t += 0.1) {
+      const lon = path.at(t).center[0];
+      expect(lon).toBeGreaterThanOrEqual(prev - 1e-9);
+      prev = lon;
+    }
+    // Exactly at a pole on both ends: still finite.
+    expect(Number.isFinite(flyPath(from, { center: [-170, -90], scale: 400 }, vp).durationMs)).toBe(true);
+  });
+
+  it('interpolates the shorter way round', () => {
     const f = interpolateCenter([170, 0], [-170, 0]);
     const mid = f(0.5);
     expect(Math.abs(mid[0])).toBeCloseTo(180, 6); // crosses the date line, not Africa

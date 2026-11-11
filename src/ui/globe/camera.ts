@@ -51,21 +51,18 @@ export function angleBetween(a: [number, number], b: [number, number]): number {
   return 2 * Math.asin(Math.min(1, Math.sqrt(h)));
 }
 
-/** Point a fraction t along the great circle from a to b. */
+/** Shortest signed longitude change from a to b, in degrees (-180..180). */
+export function lonDelta(a: number, b: number): number {
+  return ((((b - a + 180) % 360) + 360) % 360) - 180;
+}
+
+/** View centre a fraction t of the way from a to b. Longitude (the shorter way round) and
+ *  latitude change separately rather than along a great circle: the camera keeps north up,
+ *  so longitude sets which way the map faces, and changing it gradually makes a flight
+ *  from a pole turn smoothly instead of snapping to the target's meridian. */
 export function interpolateCenter(a: [number, number], b: [number, number]): (t: number) => [number, number] {
-  const r = Math.PI / 180;
-  const d = angleBetween(a, b);
-  if (d < 1e-9) return () => b;
-  const [x0, y0, z0] = [Math.cos(a[1] * r) * Math.cos(a[0] * r), Math.cos(a[1] * r) * Math.sin(a[0] * r), Math.sin(a[1] * r)];
-  const [x1, y1, z1] = [Math.cos(b[1] * r) * Math.cos(b[0] * r), Math.cos(b[1] * r) * Math.sin(b[0] * r), Math.sin(b[1] * r)];
-  return (t) => {
-    const k0 = Math.sin((1 - t) * d) / Math.sin(d);
-    const k1 = Math.sin(t * d) / Math.sin(d);
-    const x = k0 * x0 + k1 * x1;
-    const y = k0 * y0 + k1 * y1;
-    const z = k0 * z0 + k1 * z1;
-    return [Math.atan2(y, x) / r, Math.atan2(z, Math.hypot(x, y)) / r];
-  };
+  const dLon = lonDelta(a[0], b[0]);
+  return (t) => [lonDelta(0, a[0] + dLon * t), a[1] + (b[1] - a[1]) * t];
 }
 
 export const easeInOutCubic = (t: number) => (t < 0.5 ? 4 * t * t * t : 1 - (-2 * t + 2) ** 3 / 2);
@@ -87,9 +84,18 @@ export function flyPath(from: View, to: View, v: Viewport): FlyPath {
   const logBoth = Math.log(Math.max(scaleExtent(v)[0], both));
   const dip = Math.max(0, Math.min(logFrom, logTo) - logBoth);
   const doublings = Math.abs(logTo - logFrom) / Math.LN2 + (2 * dip) / Math.LN2;
+  // Turning around a pole: the spin angle matters most near the poles. Bounded by π.
+  const r = Math.PI / 180;
+  const nearPole = Math.max(Math.abs(Math.sin(from.center[1] * r)), Math.abs(Math.sin(to.center[1] * r)));
+  const spin = Math.abs(lonDelta(from.center[0], to.center[0])) * r * nearPole;
   const durationMs = Math.min(
     FLY_DURATION_MS.max,
-    Math.max(FLY_DURATION_MS.min, angle * FLY_DURATION_MS.perRadian + doublings * FLY_DURATION_MS.perZoomDoubling),
+    Math.max(
+      FLY_DURATION_MS.min,
+      angle * FLY_DURATION_MS.perRadian +
+        doublings * FLY_DURATION_MS.perZoomDoubling +
+        spin * FLY_DURATION_MS.perSpinRadian,
+    ),
   );
   return {
     durationMs,
