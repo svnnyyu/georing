@@ -192,6 +192,7 @@ def read_countries() -> dict[str, dict]:
             p = line.rstrip("\n").split("\t")
             countries[p[0]] = {
                 "name": p[4],
+                "continent": p[8],  # AF, AN, AS, EU, NA, OC, SA
                 "geonameid": int(p[16]) if p[16] else None,
                 "langs": [l.split("-")[0] for l in p[15].split(",") if l],
             }
@@ -388,6 +389,7 @@ def main() -> None:
         alts = alt_names.get(info["geonameid"], [])
         country_records[cc] = {
             "name": info["name"],
+            "continent": info["continent"],
             "aliases": pick_aliases([info["name"]], alts, info["langs"], []),
         }
 

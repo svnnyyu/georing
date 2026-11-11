@@ -12,6 +12,8 @@ mapshaper (an npm dev dependency) to convert them to quantized TopoJSON:
     world-50m-lo.json   1:50m simplified, all islands and lakes kept (zoomed out)
     world-50m.json      full 1:50m (zoomed in)
   each with objects land, countries and lakes
+    subdivisions.json   borders between states/provinces inside each country (1:10m admin-1,
+                        simplified), drawn only when the Subdivisions setting is on
 
 Countries keep two properties: cc (from ISO_A2_EH, because plain ISO_A2 is -99 for
 France, Norway and a few others) and name. See docs/SPEC.md -> Globe -> Detail levels.
@@ -40,7 +42,7 @@ OUTPUTS = {
     "50m-lo": ("50m", "12%"),
     "50m": ("50m", None),
 }
-NE_NAMES = {"land": "land", "countries": "admin_0_countries", "lakes": "lakes"}
+NE_NAMES = {"land": "land", "countries": "admin_0_countries", "lakes": "lakes", "admin1": "admin_1_states_provinces"}
 
 
 def shapefile(scale: str, layer: str, theme: str) -> Path:
@@ -80,6 +82,28 @@ def build(name: str) -> Path:
     return out
 
 
+SUBDIVISION_SIMPLIFY = "6%"
+
+
+def build_subdivisions() -> Path:
+    """Lines between first-level subdivisions of the same country (country borders are
+    already in the world files)."""
+    out = OUT / "subdivisions.json"
+    shp = shapefile("10m", "admin1", "cultural")
+    cmd = [
+        "npx", "--no-install", "mapshaper",
+        "-i", str(shp), "encoding=utf8",
+        "-simplify", SUBDIVISION_SIMPLIFY, "keep-shapes",
+        "-innerlines", "where=A.adm0_a3 == B.adm0_a3",
+        "-rename-layers", "subdivisions",
+        "-filter-fields", "",
+        "-o", "format=topojson", f"quantization={QUANTIZATION}", str(out),
+    ]
+    subprocess.run(cmd, check=True, cwd=ROOT)
+    print(f"  {out.name}: {out.stat().st_size / 1e6:.2f} MB")
+    return out
+
+
 def report(path: Path) -> None:
     topo = json.loads(path.read_text(encoding="utf-8"))
     parts = []
@@ -99,6 +123,7 @@ def main() -> None:
     OUT.mkdir(parents=True, exist_ok=True)
     for name in OUTPUTS:
         report(build(name))
+    build_subdivisions()
 
 
 if __name__ == "__main__":

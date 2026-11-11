@@ -1,27 +1,54 @@
 // React wrapper around the canvas globe. React renders the <canvas> once; all drawing and
-// interaction happen in Globe (globe.ts), so the map is never re-rendered by React.
+// interaction happen in Globe (globe.ts), so the map is never re-rendered by React. The
+// game layer (rings, markers) is passed in as data and handed to the globe.
 
 import { useEffect, useImperativeHandle, useRef, type Ref } from 'react';
-import { loadWorld } from '../../data/loadGeo.ts';
+import { loadSubdivisions, loadWorld } from '../../data/loadGeo.ts';
 import { Globe, type ViewInfo } from './globe.ts';
+import type { GlobeOverlay } from './overlay.ts';
 import './globe.css';
 
 export interface GlobeHandle {
   /** Fly to a point; with radiusKm, zoom so that circle fills RING_FIT_FRACTION of the screen. */
-  flyTo(lat: number, lon: number, radiusKm?: number): Promise<void>;
+  /** durationMs overrides the distance-based flight time. */
+  flyTo(lat: number, lon: number, radiusKm?: number, durationMs?: number): Promise<void>;
+  /** Fly back to the starting whole-Earth view. */
+  flyHome(): Promise<void>;
+  /** Where a marker was last drawn (CSS px within the globe), if visible. */
+  markerPosition(id: string): { x: number; y: number } | null;
 }
 
 export interface GlobeViewProps {
   ref?: Ref<GlobeHandle>;
+  overlay?: GlobeOverlay;
+  /** Draw state/province borders. */
+  subdivisions?: boolean;
+  /** Slowly turn the globe (start screen). */
+  idleSpin?: boolean;
   onViewChange?: (info: ViewInfo) => void;
+  onMarkerHover?: (id: string | null, x: number, y: number) => void;
+  onMarkerTap?: (id: string | null, x: number, y: number) => void;
   onError?: (error: Error) => void;
 }
 
-export function GlobeView({ ref, onViewChange, onError }: GlobeViewProps) {
+const EMPTY: GlobeOverlay = { rings: [], markers: [] };
+
+export function GlobeView({
+  ref,
+  overlay = EMPTY,
+  subdivisions = false,
+  idleSpin = false,
+  onViewChange,
+  onMarkerHover,
+  onMarkerTap,
+  onError,
+}: GlobeViewProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const globeRef = useRef<Globe | null>(null);
-  const callbacks = useRef({ onViewChange, onError });
-  callbacks.current = { onViewChange, onError };
+  const callbacks = useRef({ onViewChange, onMarkerHover, onMarkerTap, onError });
+  callbacks.current = { onViewChange, onMarkerHover, onMarkerTap, onError };
+  const overlayRef = useRef(overlay);
+  overlayRef.current = overlay;
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -33,8 +60,13 @@ export function GlobeView({ ref, onViewChange, onError }: GlobeViewProps) {
           .then((w) => globe.setWorld(detail, w))
           .catch(fail),
       onViewChange: (info) => callbacks.current.onViewChange?.(info),
+      onMarkerHover: (id, x, y) => callbacks.current.onMarkerHover?.(id, x, y),
+      onMarkerTap: (id, x, y) => callbacks.current.onMarkerTap?.(id, x, y),
     });
     globeRef.current = globe;
+    globe.setOverlay(overlayRef.current);
+    // Marker labels use the web font; redraw once it has loaded.
+    void document.fonts?.ready.then(() => globe.refreshTheme());
     loadWorld('110m')
       .then((w) => globe.setWorld('110m', w))
       .catch(fail);
@@ -50,10 +82,34 @@ export function GlobeView({ ref, onViewChange, onError }: GlobeViewProps) {
     };
   }, []);
 
+  useEffect(() => {
+    globeRef.current?.setOverlay(overlay);
+  }, [overlay]);
+
+  useEffect(() => {
+    globeRef.current?.setIdleSpin(idleSpin);
+  }, [idleSpin]);
+
+  useEffect(() => {
+    if (!subdivisions) {
+      globeRef.current?.setSubdivisions(null);
+      return;
+    }
+    let live = true;
+    loadSubdivisions()
+      .then((fc) => live && globeRef.current?.setSubdivisions(fc))
+      .catch((e: unknown) => callbacks.current.onError?.(e instanceof Error ? e : new Error(String(e))));
+    return () => {
+      live = false;
+    };
+  }, [subdivisions]);
+
   useImperativeHandle(
     ref,
     () => ({
-      flyTo: (lat, lon, radiusKm) => globeRef.current?.flyTo(lat, lon, radiusKm) ?? Promise.resolve(),
+      flyTo: (lat, lon, radiusKm, durationMs) => globeRef.current?.flyTo(lat, lon, radiusKm, durationMs) ?? Promise.resolve(),
+      flyHome: () => globeRef.current?.flyHome() ?? Promise.resolve(),
+      markerPosition: (id) => globeRef.current?.markerPosition(id) ?? null,
     }),
     [],
   );

@@ -26,22 +26,22 @@ function city(id: number, name: string, bearing: number, km: number, pop: number
   };
 }
 
-/** Ring width 100 km. City measure: ring 1 = Suburb > Alpha > Bravo > Springfield (north);
+/** Ring width 500 km. City measure: ring 1 = Suburb > Alpha > Bravo > Springfield (north);
  *  ring 2 = Echo > Charlie > Delta; ring 3 = Springfield (south) > Foxtrot; ring 4 empty;
  *  ring 5 = Golf. Metro measure: Suburb merges into Start, Delta into Echo. */
 export function syntheticCities(): City[] {
   return [
     city(1, 'Start', 0, 0, 1_000_000, { wellKnown: true, metro: 101 }),
-    city(2, 'Suburb', 90, 2, 300_000, { metro: 101 }),
-    city(3, 'Alpha', 90, 50, 200_000, { aliases: ['ALF'] }),
-    city(4, 'Bravo', 0, 99.9, 150_000),
-    city(5, 'Charlie', 180, 100.1, 500_000),
-    city(6, 'Delta', 270, 150, 400_000, { metro: 102 }),
-    city(7, 'Echo', 270, 155, 600_000, { metro: 102 }),
-    city(8, 'Foxtrot', 45, 250, 50_000),
-    city(9, 'Golf', 135, 450, 10_000_000, { cc: 'YY' }),
-    city(10, 'Springfield', 0, 30, 60_000, { admin1: 'North' }),
-    city(11, 'Springfield', 180, 260, 155_000, { admin1: 'South' }),
+    city(2, 'Suburb', 90, 10, 300_000, { metro: 101 }),
+    city(3, 'Alpha', 90, 250, 200_000, { aliases: ['ALF'] }),
+    city(4, 'Bravo', 0, 499.5, 150_000),
+    city(5, 'Charlie', 180, 500.4, 500_000),
+    city(6, 'Delta', 270, 750, 400_000, { metro: 102 }),
+    city(7, 'Echo', 270, 775, 600_000, { metro: 102 }),
+    city(8, 'Foxtrot', 45, 1250, 50_000),
+    city(9, 'Golf', 135, 2250, 10_000_000, { cc: 'YY' }),
+    city(10, 'Springfield', 0, 150, 60_000, { admin1: 'North' }),
+    city(11, 'Springfield', 180, 1300, 155_000, { admin1: 'South' }),
   ];
 }
 

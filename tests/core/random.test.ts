@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { createRng, deriveSeed, pick, randInt } from '../../src/core/random.ts';
+import { createRng, deriveSeed, pick, randInt, weightedIndex } from '../../src/core/random.ts';
 
 describe('random', () => {
   it('gives the same sequence for the same seed', () => {
@@ -38,5 +38,14 @@ describe('random', () => {
       expect(n >= 0 && n < 5 && Number.isInteger(n)).toBe(true);
     }
     expect(() => pick(r, [])).toThrow();
+  });
+
+  it('picks indices in proportion to their weights', () => {
+    const r = createRng(11);
+    const counts = [0, 0, 0];
+    for (let i = 0; i < 30_000; i++) counts[weightedIndex(r, [1, 2, 7])]!++;
+    expect(counts[0]! / 30_000).toBeCloseTo(0.1, 1);
+    expect(counts[2]! / 30_000).toBeCloseTo(0.7, 1);
+    expect(() => weightedIndex(r, [0, 0])).toThrow();
   });
 });

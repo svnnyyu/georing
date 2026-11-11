@@ -3,16 +3,23 @@
 
 // --- Geometry ---
 export const EARTH_RADIUS_KM = 6371;
-export const RING_CAP = 10;
+export const RING_CAP = 8; // with the widest rings, 8 × 2,000 km stays short of the far side of the Earth
 
 // --- Setup sliders: [min, max, step, default] ---
-export const RING_WIDTH_KM = { min: 50, max: 300, step: 50, default: 100 } as const;
+// Ring width choices, roughly log-spaced (each step ×1.33–1.5) so the slider moves evenly
+// from "regional" to "continental".
+export const RING_WIDTH_KM = { options: [500, 750, 1000, 1500, 2000], default: 500 } as const;
 export const RING_COUNT = { min: 1, max: RING_CAP, step: 1, default: 3 } as const;
-export const GUESSES_PER_RING = { min: 3, max: 5, step: 1, default: 4 } as const;
+// Fixed at 3 for now (min = max, so there is no slider).
+export const GUESSES_PER_RING = { min: 3, max: 3, step: 1, default: 3 } as const;
 
 // --- City data ---
 export const MIN_CITY_POPULATION = 15_000;
 export const WELL_KNOWN_POPULATION = 500_000; // or a national capital
+// Random starts pick a continent first, weighted by (number of start cities) ^ this exponent:
+// 0 = every continent equally likely, 1 = proportional to cities (57% Asia). 0.5 gives roughly
+// Asia 35%, Africa 17%, Europe 15%, North America 14%, South America 12%, Oceania 6%.
+export const CONTINENT_BALANCE_EXPONENT = 0.5;
 export const REVEAL_TOP_N = 5; // cities listed in the reveal panel
 
 // --- Hints ---
@@ -36,7 +43,7 @@ export const SUGGESTIONS_MIN_CHARS = 2;
 export const SUGGESTIONS_MAX = 6;
 
 // --- Globe camera ---
-export const RING_FIT_FRACTION = 0.8; // outer ring diameter vs shorter screen side
+export const RING_FIT_FRACTION = 0.5; // outer ring diameter vs shorter screen side
 export const MIN_VIEW_WIDTH_KM = 100; // closest zoom: this many km across the shorter side
 export const GRATICULE_STEP_DEG = 10;
 export const GLOBE_FIT_FRACTION = 0.9; // globe diameter vs shorter screen side, whole-Earth view
@@ -70,6 +77,30 @@ export const DETAIL_50M_MIN_ZOOM = 4;
 // Borders always show; fainter on the whole-Earth view, full strength from fullAtZoom.
 export const BORDER_OPACITY = { min: 0.5, max: 1, fullAtZoom: 3 } as const;
 export const VIEW_INFO_INTERVAL_MS = 250; // how often the globe reports zoom/frame time
+// State/province lines (Subdivisions setting): invisible below startZoom, fading in to max by fullAtZoom.
+// max < 1 keeps them fainter than country borders (which reach full opacity) at any zoom.
+export const SUBDIVISION_OPACITY = { startZoom: 1.5, fullAtZoom: 5, max: 0.55 } as const;
+// Start screen: the globe turns slowly; a drag pauses it until the player has let go this long.
+export const IDLE_SPIN_DEG_PER_SEC = 5;
+export const IDLE_RESUME_MS = 2500;
+
+// --- Globe markers ---
+export const MARKER_HIT_RADIUS_PX = 14; // hover/tap distance that counts as "on" a marker
+export const MARKER_PULSE_MS = 1400; // glow pulse when a correct or revealed answer appears
+export const TAP_MAX_MOVE_PX = 6; // a press that moves less than this is a tap, not a drag
+export const TAP_MAX_MS = 500;
+
+// --- Game screens ---
+export const INFO_CARD = { width: 240, height: 150, offsetPx: 14 } as const; // hover card placement
+export const EMPTY_RING_ADVANCE_MS = 1800; // "No cities in this ring" shows this long, then moves on
+// Starting a game: the start screen's words leave, the globe rises, then the camera flies to the
+// start city, and the guess box slides in. (CSS reads these through variables set in App.tsx.)
+export const START_EXIT_MS = 600;
+export const GLOBE_RISE_MS = 1800;
+export const HUD_ENTER_MS = 450;
+// The first flight of a game (to the start city) always takes this long, wherever the city is;
+// later flights between rings are timed by distance (FLY_DURATION_MS).
+export const FLY_START_MS = 2400;
 // d3-geo adaptive resampling (curving long edges), in px. Used for the graticule, the rim and
 // (later) rings; the map layers skip it because their edges are already short.
 export const RESAMPLE_PRECISION_PX = 0.5;

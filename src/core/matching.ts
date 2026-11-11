@@ -121,13 +121,15 @@ export function resolveGuess(index: MatchIndex, data: GameData, text: string, ct
   if (hits) {
     const names = hits.filter((e) => e.kind === 'name');
     const units = toUnits(names.length > 0 ? names : hits);
+    // Prefer in-ring cities; among the candidates, ask only if another is at least
+    // AMBIGUOUS_POP_RATIO of the largest's size (two Springfields), not for Dhaka vs a small
+    // Dhāka in Bihar.
     const inRing = units.filter(ctx.inRing);
-    if (inRing.length === 1) return { kind: 'match', unitId: inRing[0]! };
-    if (inRing.length > 1) return { kind: 'ambiguous', unitIds: inRing };
-    const top = unitPop(data, ctx.measure, units[0]!);
-    const ties = units.filter((u) => unitPop(data, ctx.measure, u) >= AMBIGUOUS_POP_RATIO * top);
+    const pool = inRing.length > 0 ? inRing : units;
+    const top = unitPop(data, ctx.measure, pool[0]!);
+    const ties = pool.filter((u) => unitPop(data, ctx.measure, u) >= AMBIGUOUS_POP_RATIO * top);
     if (names.length > 0 && ties.length > 1) return { kind: 'ambiguous', unitIds: ties.slice(0, SUGGESTIONS_MAX) };
-    return { kind: 'match', unitId: units[0]! };
+    return { kind: 'match', unitId: pool[0]! };
   }
 
   // Fuzzy: best (smallest) distance within each candidate's own threshold.

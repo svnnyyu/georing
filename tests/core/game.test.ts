@@ -1,13 +1,15 @@
 import { describe, expect, it } from 'vitest';
-import { GUESSES_PER_RING, RING_WIDTH_KM } from '../../src/config.ts';
+import { CONTINENT_BALANCE_EXPONENT, GUESSES_PER_RING, RING_CAP } from '../../src/config.ts';
 import {
   currentRing,
   currentRingState,
   defaultSettings,
   guessesLeft,
   newGame,
+  randomStartCity,
   nextRing,
   sanitizeSettings,
+  skipRing,
   submitGuess,
   useHint,
 } from '../../src/core/game.ts';
@@ -21,22 +23,24 @@ describe('settings', () => {
   it('has the spec defaults', () => {
     expect(defaultSettings()).toEqual({
       startCityId: null,
-      ringWidthKm: 100,
+      ringWidthKm: 500,
       ringCount: 3,
-      guessesPerRing: 4,
+      guessesPerRing: 3,
       suggestions: false,
+      subdivisions: false,
       measure: 'city',
       mode: 'population',
     });
   });
 
   it('clamps and snaps values to the slider ranges', () => {
-    const s = sanitizeSettings({ ringWidthKm: 333, ringCount: 99, guessesPerRing: 1, measure: 'metro' });
-    expect(s.ringWidthKm).toBe(RING_WIDTH_KM.max);
-    expect(s.ringCount).toBe(10);
-    expect(s.guessesPerRing).toBe(GUESSES_PER_RING.min);
+    const s = sanitizeSettings({ ringWidthKm: 3333, ringCount: 99, guessesPerRing: 5, measure: 'metro' });
+    expect(s.ringWidthKm).toBe(2000); // the widest option
+    expect(s.ringCount).toBe(RING_CAP);
+    expect(s.guessesPerRing).toBe(GUESSES_PER_RING.max); // fixed at 3
     expect(s.measure).toBe('metro');
-    expect(sanitizeSettings({ ringWidthKm: 120 }).ringWidthKm).toBe(100);
+    expect(sanitizeSettings({ ringWidthKm: 120 }).ringWidthKm).toBe(500);
+    expect(sanitizeSettings({ ringWidthKm: 1400 }).ringWidthKm).toBe(1500);
     expect(sanitizeSettings(null)).toEqual(defaultSettings());
   });
 });
@@ -52,6 +56,28 @@ describe('newGame', () => {
     expect(starts.size).toBeGreaterThan(10);
   });
 
+  it('balances random start cities across continents (weighted by sqrt of city counts)', () => {
+    const { data } = realData();
+    const pool = new Map<string, number>();
+    for (const c of data.cities) if (c.wellKnown) pool.set(data.countries[c.cc]!.continent!, (pool.get(data.countries[c.cc]!.continent!) ?? 0) + 1);
+    const weights = new Map([...pool].map(([k, n]) => [k, n ** CONTINENT_BALANCE_EXPONENT]));
+    const total = [...weights.values()].reduce((a, b) => a + b, 0);
+    const counts = new Map<string, number>();
+    const n = 3000;
+    for (let seed = 0; seed < n; seed++) {
+      const continent = data.countries[data.byId.get(randomStartCity(data, seed))!.cc]!.continent!;
+      counts.set(continent, (counts.get(continent) ?? 0) + 1);
+    }
+    expect([...counts.keys()].sort()).toEqual(['AF', 'AS', 'EU', 'NA', 'OC', 'SA']);
+    for (const [k, c] of counts) {
+      const expected = (n * weights.get(k)!) / total;
+      expect(Math.abs(c - expected)).toBeLessThan(0.2 * expected + 20);
+    }
+    // Asia stays the most likely, Oceania the least, but Asia is well under half.
+    expect(counts.get('AS')! / n).toBeLessThan(0.45);
+    expect(counts.get('OC')!).toBeLessThan(counts.get('AF')!);
+  });
+
   it('uses a chosen start city, and its metro in Metro mode', () => {
     const { data } = synthetic();
     expect(newGame(data, { startCityId: 2 }, 1, NOW).startId).toBe(2);
@@ -62,7 +88,7 @@ describe('newGame', () => {
 describe('guessing', () => {
   const { data } = synthetic();
   const start = (overrides = {}) =>
-    newGame(data, { startCityId: 1, ringWidthKm: 100, ringCount: 5, guessesPerRing: 3, ...overrides }, 7, NOW);
+    newGame(data, { startCityId: 1, ringWidthKm: 500, ringCount: 5, guessesPerRing: 3, ...overrides }, 7, NOW);
 
   it('places outside guesses without using a guess', () => {
     const r = submitGuess(data, start(), 5); // Charlie is in ring 2
@@ -98,6 +124,15 @@ describe('guessing', () => {
     expect(s.phase).toBe('ringOver');
   });
 
+  it('skips a ring: missed, answer revealed, then on to the next', () => {
+    let s = submitGuess(data, start(), 3).state;
+    s = skipRing(s);
+    expect(currentRingState(s)).toMatchObject({ status: 'missed', skipped: true });
+    expect(s.phase).toBe('ringOver');
+    expect(skipRing(s)).toBe(s); // only while playing
+    expect(nextRing(s).current).toBe(1);
+  });
+
   it('accepts a member city as its metro in Metro mode', () => {
     let s = start({ measure: 'metro' });
     s = nextRing(submitGuess(data, s, 3).state); // Alpha solves ring 1 (Suburb is part of the start metro)
@@ -110,7 +145,7 @@ describe('rings, hints and the end of the game', () => {
   const { data } = synthetic();
 
   it('moves through rings, auto-skips empty ones, and finishes', () => {
-    let s = newGame(data, { startCityId: 1, ringWidthKm: 100, ringCount: 5 }, 7, NOW);
+    let s = newGame(data, { startCityId: 1, ringWidthKm: 500, ringCount: 5 }, 7, NOW);
     s = submitGuess(data, s, 2).state;
     s = nextRing(s);
     expect([s.current, s.phase]).toEqual([1, 'playing']);
@@ -125,13 +160,13 @@ describe('rings, hints and the end of the game', () => {
   });
 
   it('starts in ringOver when ring 1 is empty', () => {
-    const s = newGame(data, { startCityId: 9, ringWidthKm: 50, ringCount: 2 }, 1, NOW); // Golf is far from all
+    const s = newGame(data, { startCityId: 9, ringWidthKm: 500, ringCount: 2 }, 1, NOW); // Golf is over 1,000 km from all
     expect(s.phase).toBe('ringOver');
     expect(s.ringStates.every((r) => r.status === 'empty')).toBe(true);
   });
 
   it('gives the three hints in order, then no more', () => {
-    let s: GameState = newGame(data, { startCityId: 1, ringWidthKm: 100, ringCount: 3 }, 7, NOW);
+    let s: GameState = newGame(data, { startCityId: 1, ringWidthKm: 500, ringCount: 3 }, 7, NOW);
     s = useHint(data, s);
     expect(currentRingState(s).hints).toEqual({ used: ['country'], country: { cc: 'XX', name: 'Exland' } });
     s = useHint(data, s);

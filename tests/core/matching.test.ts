@@ -59,9 +59,9 @@ describe('resolveGuess (synthetic)', () => {
     expect(resolveGuess(index, data, 'springfield', noRing)).toEqual({ kind: 'match', unitId: 11 });
   });
 
-  it('asks which one when both same-named cities are in the ring', () => {
+  it('takes the much larger one even when both same-named cities are in the ring', () => {
     const r = resolveGuess(index, data, 'Springfield', { measure: 'city', inRing: () => true });
-    expect(r).toEqual({ kind: 'ambiguous', unitIds: [11, 10] });
+    expect(r).toEqual({ kind: 'match', unitId: 11 });
   });
 
   it('prefers the in-ring city when names tie', () => {

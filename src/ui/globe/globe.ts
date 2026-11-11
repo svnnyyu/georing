@@ -8,18 +8,25 @@ import { pointer, pointers, select, type Selection } from 'd3-selection';
 import { zoom as d3zoom, zoomIdentity, type D3ZoomEvent, type ZoomBehavior } from 'd3-zoom';
 import {
   BORDER_OPACITY,
+  IDLE_RESUME_MS,
+  IDLE_SPIN_DEG_PER_SEC,
+  SUBDIVISION_OPACITY,
   DETAIL_50M_MIN_ZOOM,
   GLOBE_START_VIEW,
   GRATICULE_STEP_DEG,
   INERTIA,
+  MARKER_HIT_RADIUS_PX,
   MAX_CENTER_LAT,
   WHEEL,
   CLIP_MARGIN_DEG,
   RESAMPLE_PRECISION_PX,
+  TAP_MAX_MOVE_PX,
+  TAP_MAX_MS,
   VIEW_INFO_INTERVAL_MS,
 } from '../../config.ts';
 import type { Detail, WorldLayers } from '../../data/loadGeo.ts';
-import { prepareWorld, visible, type PreparedWorld } from './layers.ts';
+import { prepareLines, prepareWorld, visible, type Item, type PreparedWorld } from './layers.ts';
+import { drawOverlay, hitTest, type GlobeOverlay, type ProjectedMarker } from './overlay.ts';
 import { flyPath, scaleExtent, scaleForRadius, wholeEarthScale, type View, type Viewport } from './camera.ts';
 import { readGlobeTheme, type GlobeTheme } from './theme.ts';
 import {
@@ -45,6 +52,10 @@ export interface GlobeOptions {
   /** Called when a more detailed layer is first needed; call setWorld() when it has loaded. */
   onNeedDetail?: (detail: Detail) => void;
   onViewChange?: (info: ViewInfo) => void;
+  /** The pointer moved onto (id) or off (null) a marker. x, y in CSS px within the canvas. */
+  onMarkerHover?: (id: string | null, x: number, y: number) => void;
+  /** A tap or click: on a marker (id) or on empty globe (null). */
+  onMarkerTap?: (id: string | null, x: number, y: number) => void;
 }
 
 type ZoomEvent = D3ZoomEvent<HTMLCanvasElement, unknown>;
@@ -76,6 +87,18 @@ export class Globe {
   private wheelEvent: WheelEvent | null = null;
   private wheelPan = false;
   private wheelTime = -Infinity;
+  // Game layer: rings and markers
+  private overlay: GlobeOverlay = { rings: [], markers: [] };
+  private readonly born = new Map<string, number>();
+  private projected: ProjectedMarker[] = [];
+  private hovered: string | null = null;
+  private dragging = false;
+  private press: { x: number; y: number; t: number } | null = null;
+  private subdivisions: Item[] | null = null;
+  // Idle spin (start screen)
+  private idleSpin = false;
+  private idleFrame = 0;
+  private lastInteraction = 0;
 
   constructor(
     private readonly canvas: HTMLCanvasElement,
@@ -95,6 +118,10 @@ export class Globe {
       .on('end', (e: ZoomEvent) => this.gestureEnd(e));
     this.selection.call(this.zoomBehavior);
     canvas.addEventListener('wheel', this.onWheel, { passive: false });
+    canvas.addEventListener('pointermove', this.onPointerMove);
+    canvas.addEventListener('pointerleave', this.onPointerLeave);
+    canvas.addEventListener('pointerdown', this.onPointerDown);
+    canvas.addEventListener('pointerup', this.onPointerUp);
   }
 
   /** Call when the canvas's CSS size changes. Keeps the current zoom level. */
@@ -121,6 +148,49 @@ export class Globe {
     this.requestDraw();
   }
 
+  /** Rings and markers to draw on top of the map. New answer markers get a glow pulse. */
+  setOverlay(overlay: GlobeOverlay): void {
+    const now = performance.now();
+    const ids = new Set(overlay.markers.map((m) => m.id));
+    for (const m of overlay.markers) if (m.kind === 'correct' && !this.born.has(m.id)) this.born.set(m.id, now);
+    for (const id of this.born.keys()) if (!ids.has(id)) this.born.delete(id);
+    this.overlay = overlay;
+    this.requestDraw();
+  }
+
+  /** State/province borders to draw, or null to hide them. */
+  setSubdivisions(lines: import('geojson').FeatureCollection | null): void {
+    this.subdivisions = lines ? prepareLines(lines) : null;
+    this.requestDraw();
+  }
+
+  /** Slowly turn the globe (start screen). Pauses while the player interacts. */
+  setIdleSpin(on: boolean): void {
+    this.idleSpin = on;
+    cancelAnimationFrame(this.idleFrame);
+    this.idleFrame = 0;
+    if (!on) return;
+    let prev = performance.now();
+    const step = (now: number) => {
+      if (!this.idleSpin || this.destroyed) return;
+      const dt = Math.min(64, now - prev);
+      prev = now;
+      const busy = this.dragging || this.inertia !== 0 || now - this.lastInteraction < IDLE_RESUME_MS;
+      if (!busy) {
+        const [lambda, phi, gamma] = this.projection.rotate();
+        this.projection.rotate([lambda + (IDLE_SPIN_DEG_PER_SEC * dt) / 1000, phi, gamma]);
+        this.draw();
+      }
+      this.idleFrame = requestAnimationFrame(step);
+    };
+    this.idleFrame = requestAnimationFrame(step);
+  }
+
+  /** Screen position (CSS px) of a marker drawn in the last frame, if visible. */
+  markerPosition(id: string): { x: number; y: number } | null {
+    return this.projected.find((p) => p.id === id) ?? null;
+  }
+
   /** Re-read colours from tokens.css (e.g. after a theme change). */
   refreshTheme(): void {
     this.theme = readGlobeTheme();
@@ -140,13 +210,26 @@ export class Globe {
   /** Smoothly move the camera to centre on (lat, lon). With radiusKm, zoom so a circle of
    *  that radius fills RING_FIT_FRACTION of the shorter side; without it, keep the zoom.
    *  Resolves when the flight ends (or is interrupted by the player). */
-  flyTo(lat: number, lon: number, radiusKm?: number): Promise<void> {
+  flyTo(lat: number, lon: number, radiusKm?: number, durationMs?: number): Promise<void> {
+    const scale = radiusKm === undefined ? this.projection.scale() : scaleForRadius(radiusKm, this.viewport);
+    return this.flyToView({ center: [lon, lat], scale }, durationMs);
+  }
+
+  /** Fly back to the starting whole-Earth view. */
+  flyHome(): Promise<void> {
+    if (!this.sized) {
+      // Not laid out yet: the first resize() sets the whole-Earth zoom.
+      this.projection.rotate(rotationFor(GLOBE_START_VIEW.lon, GLOBE_START_VIEW.lat));
+      return Promise.resolve();
+    }
+    return this.flyToView({ center: [GLOBE_START_VIEW.lon, GLOBE_START_VIEW.lat], scale: wholeEarthScale(this.viewport) });
+  }
+
+  /** durationMs overrides the distance-based flight time. */
+  private flyToView(to: View, durationMs?: number): Promise<void> {
     this.stopMotion();
-    const to: View = {
-      center: [lon, lat],
-      scale: radiusKm === undefined ? this.projection.scale() : scaleForRadius(radiusKm, this.viewport),
-    };
     const path = flyPath(this.view, to, this.viewport);
+    if (durationMs !== undefined) path.durationMs = durationMs;
     const t0 = performance.now();
     return new Promise((resolve) => {
       const step = (now: number) => {
@@ -175,8 +258,13 @@ export class Globe {
     cancelAnimationFrame(this.frame);
     cancelAnimationFrame(this.flight);
     cancelAnimationFrame(this.inertia);
+    cancelAnimationFrame(this.idleFrame);
     this.selection.on('.zoom', null);
     this.canvas.removeEventListener('wheel', this.onWheel);
+    this.canvas.removeEventListener('pointermove', this.onPointerMove);
+    this.canvas.removeEventListener('pointerleave', this.onPointerLeave);
+    this.canvas.removeEventListener('pointerdown', this.onPointerDown);
+    this.canvas.removeEventListener('pointerup', this.onPointerUp);
   }
 
   // --- Interaction ---------------------------------------------------------------------
@@ -247,13 +335,54 @@ export class Globe {
     if (!this.wheelIsPan(e)) return;
     e.preventDefault();
     this.stopMotion();
+    this.lastInteraction = performance.now();
     const [dx, dy] = wheelPanPixels(e);
     this.pan(dx, dy);
+  };
+
+  // Hover and tap on markers. Pointer events run alongside d3-zoom's mouse/touch handling.
+  private localPoint(e: PointerEvent): [number, number] {
+    const r = this.canvas.getBoundingClientRect();
+    return [e.clientX - r.left, e.clientY - r.top];
+  }
+
+  private readonly onPointerMove = (e: PointerEvent): void => {
+    if (this.dragging || e.pointerType === 'touch') return;
+    const [x, y] = this.localPoint(e);
+    const id = hitTest(this.projected, x, y, MARKER_HIT_RADIUS_PX);
+    this.canvas.style.cursor = id ? 'pointer' : '';
+    if (id !== this.hovered) {
+      this.hovered = id;
+      this.options.onMarkerHover?.(id, x, y);
+    }
+  };
+
+  private readonly onPointerLeave = (): void => {
+    if (this.hovered) {
+      this.hovered = null;
+      this.options.onMarkerHover?.(null, 0, 0);
+    }
+  };
+
+  private readonly onPointerDown = (e: PointerEvent): void => {
+    const [x, y] = this.localPoint(e);
+    this.press = { x, y, t: performance.now() };
+  };
+
+  private readonly onPointerUp = (e: PointerEvent): void => {
+    const press = this.press;
+    this.press = null;
+    if (!press) return;
+    const [x, y] = this.localPoint(e);
+    if (Math.hypot(x - press.x, y - press.y) > TAP_MAX_MOVE_PX || performance.now() - press.t > TAP_MAX_MS) return;
+    this.options.onMarkerTap?.(hitTest(this.projected, x, y, MARKER_HIT_RADIUS_PX), x, y);
   };
 
   private gestureStart(e: ZoomEvent): void {
     const source = e.sourceEvent as Event | null;
     if (!source) return; // programmatic
+    this.lastInteraction = performance.now();
+    this.dragging = source.type !== 'wheel';
     this.stopMotion();
     this.tracker.reset();
     this.last = source.type === 'wheel' ? null : this.pointerCentre(source);
@@ -285,6 +414,8 @@ export class Globe {
   private gestureEnd(e: ZoomEvent): void {
     const source = e.sourceEvent as Event | null;
     this.last = null;
+    this.dragging = false;
+    this.lastInteraction = performance.now();
     if (!source || source.type === 'wheel') return;
     let velocity = this.tracker.velocity(performance.now());
     this.tracker.reset();
@@ -391,10 +522,27 @@ export class Globe {
       ctx.lineWidth = theme.borderWidth;
       ctx.stroke();
       ctx.globalAlpha = 1;
+      // 4b. State/province borders (Subdivisions setting), fainter when zoomed out
+      if (this.subdivisions) {
+        const { startZoom, fullAtZoom, max } = SUBDIVISION_OPACITY;
+        const ts = Math.min(1, Math.max(0, (this.zoom - startZoom) / (fullAtZoom - startZoom)));
+        trace(this.subdivisions);
+        ctx.globalAlpha = max * ts;
+        ctx.strokeStyle = theme.subdivisionLine;
+        ctx.lineWidth = theme.subdivisionWidth;
+        ctx.stroke();
+        ctx.globalAlpha = 1;
+      }
     }
     // Rim of the globe
     this.projection.precision(RESAMPLE_PRECISION_PX);
     stroke({ type: 'Sphere' }, theme.coast, theme.coastWidth);
+
+    // 6-8. Rings and markers
+    const now = performance.now();
+    const drawn = drawOverlay(ctx, path, this.projection, theme, this.overlay, { center: this.view.center, cap }, this.born, now);
+    this.projected = drawn.projected;
+    if (drawn.animating) this.requestDraw();
 
     this.lastFrameMs = performance.now() - start;
     this.reportView(detail);

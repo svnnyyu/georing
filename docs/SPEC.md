@@ -19,10 +19,12 @@ Every ring in a game has the same width, set by the player, and the target in ea
 | Setting | Options | Default |
 | --- | --- | --- |
 | Start city | Random from the well-known pool, or search and pick any city | Random |
-| Ring width | Slider, 50–300 km in steps of 50 | 100 km |
-| Number of rings | Slider, 1–10 | 3 |
-| Guesses per ring | Slider, 3–5 | 4 |
-| Suggestions dropdown | On / Off (see Guess matching) | Off |
+| Ring size | Slider over 500, 750, 1,000, 1,500, 2,000 km (log-ish, with tick marks) | 500 km |
+| Number of rings | Slider, 1–8 (with tick marks) | 3 |
+| Guesses per ring | Fixed at 3 for now (no slider) | 3 |
+| Suggestions | Toggle (see Guess matching) | Off |
+| Hints | Toggle (shown disabled until milestone 6) | — |
+| Subdivisions | Toggle: state/province borders on the globe (fading in with zoom) and the state/province in every place name | Off |
 | Population measure | City (city proper) / Metro (urban area, see Metro mode) | City |
 | Mode | Population (now); Density (later, shown disabled) | Population |
 
@@ -33,15 +35,15 @@ Every ring in a game has the same width, set by the player, and the target in ea
 - Width `w` is constant for the whole game. Ring `k` covers distances from `(k−1)·w` to `k·w`, so every ring is full width.
 - Ring 1 is a full circle of radius `w`, and the start city itself is excluded from it.
 - A city belongs to ring `k` when `inner < d ≤ outer`, so no city is ever in two rings.
-- A game has at most 10 rings (`RING_CAP` in `config.ts`), so the furthest a game reaches is 10 × `w`: 500 km at the narrowest width, 3,000 km at the widest.
-- Example: `w` = 200 km with 4 rings gives 0–200, 200–400, 400–600 and 600–800 km.
+- A game has at most 8 rings (`RING_CAP` in `config.ts`), so the furthest a game reaches is 8 × `w`: 4,000 km at the narrowest width and 16,000 km at the widest, short of the far side of the Earth (about 20,000 km away), so rings never wrap around.
+- Example: `w` = 1,000 km with 4 rings gives 0–1,000, 1,000–2,000, 2,000–3,000 and 3,000–4,000 km.
 
 ### Eligible cities and the answer
 
 - Eligible = in the game's city list (population ≥ 15,000, cleaned as described under Data) and inside the ring.
 - The answer is the eligible city with the highest population in the ring.
 - An empty ring (all ocean, for example) shows "No cities in this ring" and advances automatically. It is recorded as empty, not as a miss.
-- Random start cities are drawn from the well-known pool: population ≥ 500,000 or a national capital.
+- Random start cities are drawn from the well-known pool (population ≥ 500,000 or a national capital), balanced across continents: first a continent, weighted by (number of start cities on it) ^ `CONTINENT_BALANCE_EXPONENT` (0.5), then a city in it. That gives roughly Asia 35%, Africa 17%, Europe 15%, North America 14%, South America 12%, Oceania 6%; purely proportional picks would put 57% of starts in Asia. Continents come from GeoNames `countryInfo.txt` and are stored in `countries.json`.
 
 ### Metro mode
 
@@ -73,6 +75,19 @@ Hovering over any guessed city's marker (tapping on phones) shows a small card:
 - For a yellow (outside) guess, distance instead of rank, for example "120 km outside".
 
 All of this shows as soon as a city is guessed. A difficulty setting that hides some of it is planned for later.
+
+### Screens
+
+The game is called **GeoRing** on screen (a working title). The globe always fills the screen; everything else floats on top of it, centred.
+
+- **Start screen**: the title (pixel display font, pale mint with a green/blue split), a tagline, a big Start game button and a one-line summary of the current settings (settings live in the menu). The globe rests low on the screen like a horizon (`--globe-rest-offset`), turning slowly (`IDLE_SPIN_DEG_PER_SEC`) from the moment the page opens, even while the city data is still loading ("Loading cities…" shows over it); it can't be dragged or zoomed there. Starting a game plays a sequence (timings in `config.ts`): the title and tagline lift away and the button and summary drop away (`START_EXIT_MS`), the globe rises to the centre (`GLOBE_RISE_MS`), then the camera flies to the start city, always taking `FLY_START_MS` however near or far the city is, and the in-game box slides down from the top (`HUD_ENTER_MS`). UI animations use smooth easing curves (`--ease-out`, `--ease-in`); stepped easing looked like dropped frames at these sizes. Leaving a game flies the globe home and it spins again.
+- **Menu** (hamburger button, top left, always available): a popup tile grid like Krillion's and Eraly's. Play: New game (back to the start screen), Settings. More: History and About (shown, marked "soon", until milestones 7 and 9).
+- **Settings** popup: start city (Random, or Pick a city with a search box), Ring size and Number of rings sliders, Population measure, Mode (Density shown disabled), and square toggle switches for Suggestions, Hints (soon) and Subdivisions. Changes are saved at once (`ringgame.v1.settings`); game rules apply to the next game, while Subdivisions applies straight away.
+- **In game**: a box at the top centre with "Ring k / n", the ring's distance band and guess squares; the start city with its city and metro population on one line (active one highlighted); the guess box; the last guess's outcome ("Not in this ring: Paris is 244 km outside", "Bristol is in the ring, but not the biggest", "Reading is right!"); and a **Skip** button that gives up on the ring (it counts as missed, marked skipped, and the answer is revealed). The guesses themselves show as markers on the globe. Guessing the start city (or a city in its metro) and repeated guesses are ignored with a note.
+- **Reveal** popup (bottom centre, so the ring stays visible) when a ring ends: solved in N guesses, "Missed: it was X" or "Skipped: it was X", the top 5 with the player's guesses marked, then Next ring (or See summary on the last ring). An empty ring shows "No cities in this ring" for `EMPTY_RING_ADVANCE_MS` and moves on by itself.
+- **Summary** popup: rings solved, each ring's answer, population, result and hints used, with Play again (same settings, new seed) and Main menu. Saving to history comes in milestone 7.
+- Place names: cards and headers show "City, Country". Pick-lists (start-city search, picker, suggestions) add the state or province only when another city shares the name and it differs from the country ("Dhaka Division, Bangladesh" vs "Bihar, India"). Population lines read "City" and "Metro".
+- The info card follows the mouse on desktop; on phones a tap on a marker pins it and a tap elsewhere closes it.
 
 ### Hints (3 per ring)
 
@@ -107,7 +122,7 @@ City data comes from GeoNames (city-proper populations), map shapes come from Na
 4. Build aliases from GeoNames `alternateNamesV2.zip` (it has language tags, unlike the column in `cities15000`). Keep Latin-script names starting with a capital (or tagged `abbr`), deduplicated after normalization, at most 10 per city, ranked: English, abbreviations, the country's own languages, major European languages (fr, de, es, pt, it, nl), then at most 3 untagged names. Other languages are skipped because they are mostly transliterations. Then merge `pipeline/aliases_extra.csv` for abbreviations GeoNames lacks (most, such as NYC, LA, SF, KL, HCMC and CDMX, are already there; DC was added).
 5. Flag well-known cities: population ≥ 500,000, or feature code `PPLC` (national capital).
 6. Write `public/data/cities.json` and `public/data/countries.json` (country code → display name + aliases, such as Turkey/Türkiye).
-7. `pipeline/build_geo.py` converts the Natural Earth layers to quantized TopoJSON with [mapshaper](https://github.com/mbloch/mapshaper) (an npm dev dependency): `world-110m.json` (land, countries) and `world-50m.json` (land, countries, lakes) in `public/data/geo/`. Countries keep `cc` (from `ISO_A2_EH`) and `name`. `npm run data` runs both scripts.
+7. `pipeline/build_geo.py` converts the Natural Earth layers to quantized TopoJSON with [mapshaper](https://github.com/mbloch/mapshaper) (an npm dev dependency): `world-110m.json` (land, countries) and `world-50m.json` (land, countries, lakes) in `public/data/geo/`. Countries keep `cc` (from `ISO_A2_EH`) and `name`. It also writes `subdivisions.json` (0.8 MB): lines between first-level subdivisions of the same country (states, provinces) from Natural Earth's 1:10m admin-1 layer, simplified 6%, loaded only when the Subdivisions setting is on. `npm run data` runs both scripts.
 8. Join cities to GHSL urban centres (`pipeline/metros.py`): a city is in a metro if its point lies inside the centre's outline. Cities of 100,000+ within 5 km of an outline are snapped to it (GeoNames points are sometimes just outside). Each metro's main city is its most populous member, unless the GHSL name matches a member with at least half that population ("Guangzhou" over slightly larger Shenzhen), or `overrides.csv` sets `metroMain` (Islamabad, Kuwait City). A metro's population is the GHSL 2025 figure, but never less than its main city's (GHSL undercounts some Chinese cities, such as Chengdu at 5.6M against 13.6M census urban). Write `public/data/metros.json`.
 9. Print a sanity report: total city count, the 25 most populous cities, every city above 10 million, and the ring answers for a few test start cities (New York, London, Tokyo, Lagos, Chongqing) in both measures, plus a metro report: the top metros, big cities outside every metro, and cities whose own figure is larger than their metro's (likely district totals).
 
@@ -159,19 +174,19 @@ A guess is resolved to one city by normalizing it, checking exact names and alia
 1. **Normalize** both the guess and every name: lowercase, strip accents (Unicode NFD, then drop combining marks), turn hyphens and apostrophes into spaces, drop other punctuation, collapse whitespace. "São-Paulo" and "sao paulo" become the same string. Precompute normalized names once at load.
 2. **Exact match** on normalized `name`, `ascii` or any alias. Search cities in the current ring first; if there's no hit, search all cities so the game can say "Not in this ring".
 3. **Fuzzy match** when nothing matches exactly, using [Fuse.js](https://www.fusejs.io/) or a small Damerau-Levenshtein function (which counts letter insertions, deletions, substitutions and swaps). Accept the best match if its edit distance is ≤ 1 for names of 4–5 letters, ≤ 2 for 6–9 letters, and ≤ 3 for 10 or more. Prefer in-ring candidates.
-4. **Ambiguity:** exact display-name matches beat alias matches. If several cities match, prefer the in-ring one. If two or more in-ring cities share the name, a picker shows them with `admin1` and country. If none is in the ring, the largest wins unless another is at least half its size (`AMBIGUOUS_POP_RATIO`), in which case the picker lists those similar-sized ones: "Springfield" (Missouri, Massachusetts, Illinois) asks, "Paris" (France 2.1M, Texas 25k) and "Newark" (New Jersey over Ohio) don't. In Metro mode every match is then mapped to its metro's main city.
+4. **Ambiguity:** exact display-name matches beat alias matches. If several cities match, prefer the in-ring one. If two or more in-ring cities share the name, a picker shows them with `admin1` and country. The largest of the candidates (the in-ring ones if any are in the ring, otherwise all) wins unless another is at least half its size (`AMBIGUOUS_POP_RATIO`), in which case a picker lists those similar-sized ones: "Springfield" (Missouri, Massachusetts, Illinois) asks; "Paris" (France 2.1M, Texas 25k), "Newark" (New Jersey over Ohio) and "Dhaka" (Bangladesh over a small Dhāka in Bihar, even when both are in the ring) don't. In Metro mode every match is then mapped to its metro's main city.
 
 ### Suggestions dropdown (setting, off by default)
 
 With the dropdown off, the player types a name and presses Enter (or the submit button), and the steps above resolve it. No list of cities is ever shown while typing. The only exception is a guess that matches two or more cities equally (for example "Springfield"): then a small picker lists just those cities with state and country.
 
-**Autocorrect on Enter (like Krillion):** if the typed text is exactly a city's display name (after normalizing), Enter submits it. Otherwise (a typo, an alias such as "NYC", or in Metro mode a member city such as "Newark"), the first Enter replaces the text in the box with the resolved display name ("Nwe Yokr" → "New York City") without using a guess, and a second Enter submits it. Editing the text after a correction starts over.
+**Two-step guessing (like Krillion):** the box is first filled with a city's display name, then Enter guesses it. If the typed text is already exactly a display name (after normalizing), one Enter guesses. Otherwise (a typo, an alias such as "NYC", or in Metro mode a member city such as "Newark") the first Enter replaces the text with the resolved name ("Nwe Yokr" → "New York City") without using a guess. Choosing from the picker or the suggestions dropdown (click, or arrows + Enter) also only fills the box. The filled-in city is remembered, and its place is shown in grey inside the box ("Missouri, United States"), so a second Enter guesses exactly that city even when others share its name. Editing the text starts over.
 
 With the dropdown on:
 
 - It appears after 2 typed characters and shows up to 6 suggestions from all cities worldwide, ranked by prefix match, then fuzzy score, then population.
 - Ranking never uses ring membership, so the list gives no clue about which cities are in the ring.
-- Each suggestion shows the name plus state and country. Arrow keys and Enter select; Enter with no selection submits the top suggestion.
+- Each suggestion shows the name plus country (and state when the name is shared). Clicking one, or arrow keys and Enter, fills the box; Enter with none highlighted fills the top suggestion. A second Enter guesses.
 - The dropdown never shows populations.
 
 In both cases, a guess that can't be matched to any city shows "City not found" and doesn't use a guess.
@@ -186,7 +201,7 @@ The globe is drawn by hand with [d3-geo](https://d3js.org/d3-geo) (orthographic 
 - A drag released while still moving keeps spinning and slows down (momentum, `INERTIA` in `config.ts`). A drag that stopped before release doesn't. Speed is in screen pixels, so it covers fewer degrees when zoomed in.
 - Trackpad two-finger swipes pan in both directions (sideways spins, up/down tilts); macOS supplies their momentum. Pinch (ctrl+wheel) and mouse wheels zoom toward the pointer; double-click zooms in. Swipe vs mouse wheel is decided once per burst of wheel events (`WHEEL` in `config.ts`): wheels that report lines, or large whole-number steps with no sideways part, count as a mouse.
 - Zoom ranges from the whole Earth down to about a 100 km wide view.
-- Smooth camera moves: fly to the start city at game start, then zoom out to fit each new ring with its outer edge at about 80% of the shorter screen side.
+- Smooth camera moves: fly to the start city at game start, then zoom out to fit each new ring with its outer edge at about 50% of the shorter screen side (`RING_FIT_FRACTION`).
 - Works with mouse and touch.
 
 ### Layers (bottom to top)
@@ -255,8 +270,10 @@ All colours are CSS variables defined once in `src/ui/theme/tokens.css`. No colo
 | `--land` | #1F2C45 | Globe land |
 | `--coast` | #3B5278 | Coastlines |
 | `--country-line` | #33466A | Country borders |
-| `--accent` | #5FD4E6 | UI accent (cyan): focus, selected tiles, links, start-city diamond |
-| `--ring` | #5FD4E6 | Ring stroke (same cyan); fill at 15% opacity |
+| `--accent` | #3FE0C0 | UI accent (turquoise): focus, selected tiles, toggles, start-city diamond |
+| `--ring` | #3FE0C0 | Ring stroke (same turquoise); fill at 15% opacity |
+| `--title`, `--glitch-a`, `--glitch-b` | #E4FBF2, #2FD27A, #2F8FE8 | Title text and its green/blue split (earthy, so it doesn't copy Krillion's pink/cyan) |
+| `--subdivision-line` | = `--country-line` | State/province borders (Subdivisions setting), drawn thinner (0.5 px) and at most 55% opacity so they always stay fainter than country borders |
 | `--hint` | #C792EA | Hint circle and hint country outline |
 | `--correct` | #5FE08A | Correct answer marker and text |
 | `--wrong` | #FF5C6C | Wrong guess marker and text |
@@ -266,25 +283,25 @@ Green, red and yellow are kept only for guess results, so the ring uses the cyan
 
 ### Type
 
-- Display: [Pixelify Sans](https://fonts.google.com/specimen/Pixelify+Sans) or [Silkscreen](https://fonts.google.com/specimen/Silkscreen) for the title, ring number and summary numbers. Pick whichever reads better at large sizes.
+- Display: [Pixelify Sans](https://fonts.google.com/specimen/Pixelify+Sans) for the title, popup titles and summary numbers (not the in-game "Ring k / n", whose small digits were hard to read; that uses the body font, semibold) (chosen over Silkscreen; loaded from Google Fonts in `index.html` since milestone 5).
 - Body: [IBM Plex Mono](https://fonts.google.com/specimen/IBM+Plex+Mono) for inputs, lists and body text.
 - Section labels: uppercase, letter-spacing 0.2em, `--text-dim`, followed by a dashed rule (like "DIVE LOG" in Krillion).
 
 ### Components
 
 - Buttons and tiles: square corners, 2 px `--border` outline, `--surface` fill. The selected state switches to an `--accent` outline and text. Same look as Krillion's menu grid.
-- Title: pixel font with a subtle RGB-split glitch (two offset text shadows in pink and cyan).
+- Title: pixel font with a subtle split (two offset text shadows, green and blue) and a soft green glow. Popup titles use the same split.
 - Scanline overlay over the whole page at about 4% opacity. The pixel-globe option sits on top of the same idea.
 - Guess input: full-width monospace field with a blinking block cursor. The dropdown (when on) is styled as a bordered panel list.
 - Guess log per ring: rows like Eraly's time log, showing guess name and a yellow, red or green square, plus the revealed population after the ring ends.
 - Pixel icons (menu, settings, sound, history, hint) drawn as small SVGs on a pixel grid.
-- Motion: UI transitions use stepped easing (`steps()`) for a pixel feel. Camera moves on the globe stay smooth.
+- Motion: UI transitions and camera moves use smooth easing (`--ease-out` for arrivals, `--ease-in` for exits). Stepped easing (`steps()`) was tried and read as lag.
 
 ### Layout
 
-- Desktop: the globe fills the screen, with a side panel on the right holding ring info, guess input, guess log and hint buttons.
-- Phone: the globe fills the top 60%; the panel becomes a bottom sheet.
-- The menu button sits top-left and opens a tile grid: New game, History, Settings, About/Credits.
+- The globe fills the screen on every device; UI floats on top of it, centred: the in-game box at the top centre, the reveal popup at the bottom centre, and menu, settings and summary as centred popups over a dimmed page (see Screens).
+- The menu button sits top-left and opens the menu tile grid.
+- Phones: the same layout; the top box sits just below the menu button, popups fill the width, and the resting globe sits higher on the start screen.
 
 ## Code structure
 

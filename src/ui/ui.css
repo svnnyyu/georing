@@ -1,0 +1,844 @@
+/* Layout and component styles. Tokens only (see tokens.css). The globe fills the screen;
+   everything else floats on top of it, centred (see docs/SPEC.md -> Layout). */
+
+/* --- Stage: the globe, and the layers on top --- */
+.stage {
+  position: fixed;
+  inset: 0;
+  overflow: hidden;
+}
+
+.globe-stage {
+  position: absolute;
+  inset: 0;
+  transition: transform var(--globe-rise-ms) var(--ease-out);
+  will-change: transform;
+}
+
+/* Start screen: the globe rests low, its top showing like a horizon. */
+.globe-stage.down {
+  transform: translateY(var(--globe-rest-offset));
+  pointer-events: none; /* the resting globe just spins; it can't be dragged or zoomed */
+}
+
+.globe-stage.up {
+  transform: none;
+}
+
+/* Layer for info cards, matching the globe's area (pointer events pass through). */
+.card-layer {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 3;
+}
+
+/* "Loading cities…" over the spinning globe while the data loads. */
+.center-screen.loading {
+  background: none;
+  pointer-events: none;
+}
+
+/* Hamburger button, top left. */
+.menu-btn {
+  position: absolute;
+  top: var(--space-4);
+  left: var(--space-4);
+  z-index: 5;
+}
+
+.icon-btn {
+  display: inline-grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  color: var(--text);
+  background: var(--surface);
+  border: var(--border-width) solid var(--border);
+  border-radius: 0;
+  cursor: pointer;
+}
+
+.icon-btn:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.icon {
+  display: block;
+}
+
+/* --- Start screen --- */
+.start-screen {
+  position: absolute;
+  inset: 0;
+  bottom: 30%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-4);
+  padding: var(--space-4);
+  text-align: center;
+  pointer-events: none;
+}
+
+.start-screen > * {
+  pointer-events: auto;
+}
+
+.hero-title {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: var(--text-hero);
+  letter-spacing: 0.06em;
+  margin: 0;
+  color: var(--title);
+  text-shadow:
+    -3px 0 var(--glitch-a),
+    3px 0 var(--glitch-b),
+    0 0 24px color-mix(in srgb, var(--glitch-a) 30%, transparent);
+}
+
+/* Start screen enters with a short fade, and leaves when a game starts: the title and
+   tagline lift away, the button and summary drop away. Stepped easing for a pixel feel. */
+.start-screen > * {
+  animation: fade-in 400ms var(--ease-out) both;
+  will-change: transform, opacity; /* animate on the GPU, without re-laying out the page */
+}
+
+.start-screen.leaving .hero-title,
+.start-screen.leaving .tagline {
+  animation: leave-up var(--start-exit-ms) var(--ease-in) forwards;
+}
+
+.start-screen.leaving .btn.hero,
+.start-screen.leaving .start-meta {
+  animation: leave-down var(--start-exit-ms) var(--ease-in) forwards;
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes leave-up {
+  to {
+    opacity: 0;
+    transform: translateY(-80px);
+  }
+}
+
+@keyframes leave-down {
+  to {
+    opacity: 0;
+    transform: translateY(80px);
+  }
+}
+
+/* RGB-split glitch: offset pink and cyan copies behind the text. */
+.glitch {
+  text-shadow:
+    -2px 0 var(--glitch-a),
+    2px 0 var(--glitch-b);
+}
+
+.tagline {
+  margin: 0;
+  color: var(--accent);
+  letter-spacing: var(--label-letter-spacing);
+  text-transform: uppercase;
+  font-size: var(--text-sm);
+}
+
+.btn.hero {
+  min-width: min(420px, 100%);
+  padding: var(--space-4) var(--space-6);
+  font-family: var(--font-display);
+  font-size: var(--text-lg);
+  letter-spacing: var(--label-letter-spacing);
+  text-transform: uppercase;
+  color: var(--text);
+  border-color: var(--accent);
+  box-shadow: 0 0 18px color-mix(in srgb, var(--accent) 35%, transparent);
+}
+
+.start-meta {
+  margin: 0;
+  font-size: var(--text-sm);
+}
+
+/* A small text button (Skip). */
+.text-btn {
+  font: inherit;
+  font-size: var(--text-sm);
+  color: var(--text-dim);
+  background: none;
+  border: 1px solid var(--border);
+  padding: 2px var(--space-2);
+  cursor: pointer;
+}
+
+.text-btn:hover {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
+/* --- In-game box, top centre --- */
+.hud {
+  animation: hud-in var(--hud-enter-ms) var(--ease-out) var(--hud-enter-delay) both;
+  will-change: transform, opacity;
+  position: absolute;
+  top: var(--space-4);
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(var(--hud-width), calc(100% - 2 * var(--space-4)));
+  z-index: 4;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-4);
+  background: color-mix(in srgb, var(--surface) 92%, transparent);
+  border: var(--border-width) solid var(--border);
+}
+
+.hud-top {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-3);
+}
+
+.hud-ring {
+  /* Body font: the pixel display font's digits are hard to read this small ("8" vs "S"). */
+  font-family: var(--font-body);
+  font-weight: 600;
+  font-size: var(--text-lg);
+}
+
+.hud-top .squares {
+  margin-left: auto;
+}
+
+.hud-start {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: var(--space-1) var(--space-3);
+}
+
+.pop-inline {
+  display: inline-flex;
+  gap: var(--space-3);
+  color: var(--text-dim);
+}
+
+.pop-inline .active {
+  color: var(--accent);
+}
+
+/* The guess box slides down from the top once the globe has risen. */
+@keyframes hud-in {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -140%);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
+}
+
+/* --- Popups --- */
+.popup {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(var(--popup-width), calc(100% - 2 * var(--space-4)));
+  z-index: 4;
+  padding: var(--space-4);
+  background: var(--surface);
+  border: var(--border-width) solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+/* The reveal sits at the bottom centre, so the ring and markers stay visible. */
+.popup.reveal {
+  bottom: var(--space-4);
+}
+
+.reveal-headline {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: var(--text-lg);
+}
+
+.overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 10;
+  display: grid;
+  place-items: center;
+  padding: var(--space-4);
+  background: var(--overlay);
+}
+
+.dialog {
+  width: min(var(--dialog-width), 100%);
+  max-height: calc(100vh - 2 * var(--space-4));
+  overflow-y: auto;
+  padding: var(--space-6);
+  background: var(--surface);
+  border: var(--border-width) solid var(--border);
+}
+
+.dialog-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: var(--space-4);
+}
+
+.kicker {
+  color: var(--accent);
+  font-size: var(--text-xs);
+  letter-spacing: var(--label-letter-spacing);
+  text-transform: uppercase;
+}
+
+.dialog-title {
+  margin: var(--space-1) 0 0;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: var(--text-xl);
+  text-transform: uppercase;
+}
+
+.dialog-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.dialog-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-2);
+}
+
+.tile-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-2);
+  margin-bottom: var(--space-2);
+}
+
+.menu-tile {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  min-height: 96px;
+  font: inherit;
+  font-size: var(--text-sm);
+  letter-spacing: var(--label-letter-spacing);
+  text-transform: uppercase;
+  color: var(--text);
+  background: var(--bg);
+  border: var(--border-width) solid var(--border);
+  cursor: pointer;
+}
+
+.menu-tile:hover:not(:disabled),
+.menu-tile.selected {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.menu-tile:disabled {
+  color: var(--text-dim);
+  cursor: not-allowed;
+}
+
+.soon {
+  font-size: var(--text-xs);
+  color: var(--text-dim);
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.stack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.btn.full {
+  width: 100%;
+}
+
+/* Phones: a bit less padding, and the box at the top clears the hamburger button. (Media
+   queries can't use CSS variables, so the breakpoint is written here.) */
+@media (max-width: 767px) {
+  .hero-title {
+    font-size: calc(var(--text-hero) * 0.7);
+  }
+  .hud {
+    top: calc(var(--space-4) + 48px);
+  }
+  .dialog {
+    padding: var(--space-4);
+  }
+}
+
+/* --- Text --- */
+.title {
+  font-family: var(--font-display);
+  font-size: var(--text-xl);
+  margin: 0;
+  color: var(--text);
+}
+
+.section-label {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  color: var(--text-dim);
+  font-size: var(--text-xs);
+  letter-spacing: var(--label-letter-spacing);
+  text-transform: uppercase;
+  margin: 0 0 var(--space-2);
+}
+
+.section-label::after {
+  content: '';
+  flex: 1;
+  border-top: 1px dashed var(--border);
+}
+
+.dim {
+  color: var(--text-dim);
+}
+
+.small {
+  font-size: var(--text-sm);
+}
+
+/* --- Buttons and tiles --- */
+.btn,
+.tile {
+  font: inherit;
+  font-size: var(--text-md);
+  color: var(--text);
+  background: var(--surface);
+  border: var(--border-width) solid var(--border);
+  border-radius: 0;
+  padding: var(--space-2) var(--space-3);
+  cursor: pointer;
+}
+
+.btn:hover:not(:disabled),
+.tile:hover:not(:disabled),
+.tile.selected {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.btn:disabled,
+.tile:disabled {
+  color: var(--text-dim);
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.btn.primary {
+  border-color: var(--accent);
+  color: var(--accent);
+  font-size: var(--text-lg);
+  padding: var(--space-3);
+}
+
+.btn:focus-visible,
+.tile:focus-visible,
+.input:focus-visible,
+input[type='range']:focus-visible {
+  outline: var(--border-width) solid var(--accent);
+  outline-offset: 2px;
+}
+
+.tiles {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: 1fr;
+  gap: var(--space-2);
+}
+
+.row {
+  display: flex;
+  gap: var(--space-2);
+  align-items: center;
+}
+
+.row.spread {
+  justify-content: space-between;
+}
+
+/* --- Inputs --- */
+.input {
+  width: 100%;
+  font: inherit;
+  font-size: var(--text-md);
+  color: var(--text);
+  background: var(--bg);
+  border: var(--border-width) solid var(--border);
+  border-radius: 0;
+  padding: var(--space-2) var(--space-3);
+}
+
+.input:focus {
+  border-color: var(--accent);
+  outline: none;
+}
+
+.slider {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+/* Space between consecutive sliders only, so a section ends the same way whatever it holds. */
+.slider + .slider {
+  margin-top: var(--space-4);
+}
+
+.slider input[type='range'] {
+  width: 100%;
+  margin: 0;
+  accent-color: var(--accent);
+}
+
+/* Tick marks under a slider: one per step, centred under the thumb positions (the inset is
+   half the thumb's width, so the first and last ticks line up with the ends). */
+.ticks {
+  display: flex;
+  justify-content: space-between;
+  padding: 0 calc(var(--slider-thumb-size) / 2);
+  font-size: var(--text-xs);
+  color: var(--text-dim);
+}
+
+.tick {
+  position: relative;
+  width: 0;
+  display: flex;
+  justify-content: center;
+  padding-top: var(--space-2);
+  white-space: nowrap;
+}
+
+.tick::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: var(--space-1);
+  border-left: 1px solid var(--border);
+}
+
+.tick.active {
+  color: var(--accent);
+}
+
+.tick.active::before {
+  border-color: var(--accent);
+}
+
+.list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  border: var(--border-width) solid var(--border);
+  background: var(--bg);
+}
+
+.list-item {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-2);
+  width: 100%;
+  text-align: left;
+  font: inherit;
+  font-size: var(--text-sm);
+  color: var(--text);
+  background: none;
+  border: none;
+  border-bottom: 1px solid var(--border);
+  padding: var(--space-2) var(--space-3);
+  cursor: pointer;
+}
+
+.list-item:last-child {
+  border-bottom: none;
+}
+
+.list-item.active,
+.list-item:hover {
+  color: var(--accent);
+  background: var(--surface);
+}
+
+.guess-box {
+  position: relative;
+}
+
+/* The chosen city's place, shown in grey inside the guess box just after the name: an
+   invisible copy of the typed text (.mirror) pushes it into place. */
+.input-wrap {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+}
+
+.input-context {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  padding: 0 calc(var(--space-3) + var(--border-width));
+  overflow: hidden;
+  white-space: nowrap;
+  pointer-events: none;
+  font-size: var(--text-md);
+}
+
+.input-context .mirror {
+  visibility: hidden;
+  flex: none;
+}
+
+.input-context .ctx {
+  margin-left: var(--space-3);
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: var(--text-sm);
+  color: var(--text-dim);
+}
+
+.guess-box .list {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: calc(100% + var(--space-1));
+  z-index: 2;
+}
+
+/* --- Messages and result colours --- */
+.message {
+  margin: 0; /* spacing comes from the container's gap, like everything around it */
+  font-size: var(--text-sm);
+}
+
+.message.correct,
+.text-correct {
+  color: var(--correct);
+}
+
+.message.wrong,
+.text-wrong {
+  color: var(--wrong);
+}
+
+.message.outside,
+.text-outside {
+  color: var(--outside);
+}
+
+.message.info {
+  color: var(--text-dim);
+}
+
+.sq {
+  display: inline-block;
+  width: var(--marker-size);
+  height: var(--marker-size);
+  border: 1px solid var(--bg);
+  flex: none;
+}
+
+.sq.correct {
+  background: var(--correct);
+}
+
+.sq.wrong {
+  background: var(--wrong);
+}
+
+.sq.outside {
+  background: var(--outside);
+}
+
+.sq.empty {
+  background: var(--border);
+}
+
+.sq.unused {
+  background: none;
+  border-color: var(--border);
+}
+
+/* --- Guess log and reveal --- */
+.log {
+  display: flex;
+  flex-direction: column;
+}
+
+.log-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) 0;
+  border-bottom: 1px dashed var(--border);
+  font-size: var(--text-sm);
+}
+
+.log-row .name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.log-row .num {
+  color: var(--text-dim);
+  white-space: nowrap;
+}
+
+.log-row.answer .name {
+  color: var(--correct);
+}
+
+/* --- Info card on the globe --- */
+.info-card {
+  position: absolute;
+  z-index: 3;
+  padding: var(--space-3);
+  background: var(--surface);
+  border: var(--border-width) solid var(--border);
+  font-size: var(--text-sm);
+  pointer-events: none;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.info-card .name {
+  font-size: var(--text-md);
+  color: var(--text);
+}
+
+.info-card .pop {
+  display: flex;
+  justify-content: space-between;
+  color: var(--text-dim);
+}
+
+.info-card .pop.active,
+.pop-lines .pop.active {
+  color: var(--accent);
+}
+
+.pop-lines {
+  display: flex;
+  flex-direction: column;
+  font-size: var(--text-sm);
+}
+
+.pop-lines .pop {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-3);
+  color: var(--text-dim);
+}
+
+/* --- Loading / error screens --- */
+.center-screen {
+  position: fixed;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  color: var(--text-dim);
+}
+
+.app-error {
+  position: absolute;
+  bottom: var(--space-4);
+  left: var(--space-4);
+  right: var(--space-4);
+  padding: var(--space-3);
+  background: var(--surface);
+  border: var(--border-width) solid var(--wrong);
+  color: var(--wrong);
+}
+
+.spaced {
+  margin-bottom: var(--space-3);
+}
+
+/* --- Toggle switches (square, pixel-style) --- */
+.toggles {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.toggle-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: var(--text-md);
+  cursor: pointer;
+}
+
+.toggle-row.disabled {
+  color: var(--text-dim);
+  cursor: not-allowed;
+}
+
+.toggle {
+  position: relative;
+  width: 44px;
+  height: 24px;
+  padding: 0;
+  background: var(--bg);
+  border: var(--border-width) solid var(--border);
+  border-radius: 0;
+  cursor: inherit;
+}
+
+.toggle .knob {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 16px;
+  height: 16px;
+  background: var(--text-dim);
+  transition: transform 150ms var(--ease-out);
+}
+
+.toggle.on {
+  border-color: var(--accent);
+}
+
+.toggle.on .knob {
+  background: var(--accent);
+  transform: translateX(20px);
+}
+
+.toggle:disabled {
+  opacity: 0.5;
+}

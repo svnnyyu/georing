@@ -1,0 +1,102 @@
+// The game settings (see docs/SPEC.md -> Settings), shown in the Settings popup. Changes
+// are saved straight away and apply to the next game.
+
+import { RING_COUNT, RING_WIDTH_KM } from '../../config.ts';
+import { metroOf, PopulationLines } from '../components/Population.tsx';
+import type { PopulationMeasure } from '../../core/types.ts';
+import { CitySearch } from '../components/CitySearch.tsx';
+import { SectionLabel, Slider, Tiles, Toggle } from '../components/Controls.tsx';
+import { formatKm, placeOf } from '../format.ts';
+import { useGame } from '../state/GameProvider.tsx';
+
+const COUNTS = Array.from({ length: RING_COUNT.max - RING_COUNT.min + 1 }, (_, i) => RING_COUNT.min + i);
+
+export function SettingsForm() {
+  const { data, settings, setSettings } = useGame();
+  const set = (patch: Partial<typeof settings>) => setSettings({ ...settings, ...patch });
+  const startCity = settings.startCityId === null ? null : data.byId.get(settings.startCityId);
+
+  return (
+    <div className="stack">
+      <section>
+        <SectionLabel>Start city</SectionLabel>
+        <Tiles
+          label="Start city"
+          options={[
+            { value: 'random', label: 'Random' },
+            { value: 'pick', label: 'Pick a city' },
+          ]}
+          value={settings.startCityId === null ? 'random' : 'pick'}
+          onChange={(v) => {
+            if (v === 'random') set({ startCityId: null });
+            else if (settings.startCityId === null) set({ startCityId: data.cities.find((c) => c.wellKnown)!.id });
+          }}
+        />
+        {startCity && (
+          <div style={{ marginTop: 'var(--space-2)' }}>
+            <p className="small">
+              {startCity.name} <span className="dim">{placeOf(data, startCity.id, { regions: settings.subdivisions })}</span>
+            </p>
+            <div className="spaced">
+              <PopulationLines cityPop={startCity.pop} metro={metroOf(data, startCity.id)} measure={settings.measure} />
+            </div>
+            <CitySearch onPick={(id) => set({ startCityId: id })} />
+          </div>
+        )}
+      </section>
+
+      <section>
+        <SectionLabel>Rings</SectionLabel>
+        <Slider
+          label="Ring size"
+          value={settings.ringWidthKm}
+          values={RING_WIDTH_KM.options}
+          format={formatKm}
+          formatTick={(v) => (v >= 1000 ? `${v / 1000}k` : String(v))}
+          onChange={(v) => set({ ringWidthKm: v })}
+        />
+        <Slider
+          label="Number of rings"
+          value={settings.ringCount}
+          values={COUNTS}
+          onChange={(v) => set({ ringCount: v })}
+        />
+      </section>
+
+      <section>
+        <SectionLabel>Population</SectionLabel>
+        <Tiles<PopulationMeasure>
+          label="Population measure"
+          options={[
+            { value: 'city', label: 'City' },
+            { value: 'metro', label: 'Metro' },
+          ]}
+          value={settings.measure}
+          onChange={(v) => set({ measure: v })}
+        />
+      </section>
+
+      <section>
+        <SectionLabel>Mode</SectionLabel>
+        <Tiles
+          label="Mode"
+          options={[
+            { value: 'population', label: 'Population' },
+            { value: 'density', label: 'Density (later)', disabled: true },
+          ]}
+          value="population"
+          onChange={() => {}}
+        />
+      </section>
+
+      <section>
+        <SectionLabel>Options</SectionLabel>
+        <div className="toggles">
+          <Toggle label="Suggestions" checked={settings.suggestions} onChange={(v) => set({ suggestions: v })} />
+          <Toggle label="Hints" checked={false} onChange={() => {}} disabled note="soon" />
+          <Toggle label="Subdivisions" checked={settings.subdivisions} onChange={(v) => set({ subdivisions: v })} />
+        </div>
+      </section>
+    </div>
+  );
+}

@@ -11,21 +11,51 @@
   --land: #1f2c45;
   --coast: #3b5278;
   --country-line: #33466a;
-  --accent: #5fd4e6;
-  --ring: #5fd4e6;
+  --accent: #3fe0c0; /* turquoise */
+  --ring: #3fe0c0;
   --ring-fill-opacity: 0.15;
   --hint: #c792ea;
   --correct: #5fe08a;
   --wrong: #ff5c6c;
   --outside: #f5d547;
   --graticule: rgba(59, 82, 120, 0.35);
+  --overlay: rgba(10, 15, 28, 0.72); /* dims the page behind popups */
+  --title: #e4fbf2; /* pale mint title text */
+  --glitch-a: #2fd27a; /* title split: green offset */
+  --glitch-b: #2f8fe8; /* and blue offset */
 
   /* Globe line widths (CSS px; the renderer reads these) */
   --globe-coast-width: 1;
   --globe-border-width: 0.8;
   --globe-graticule-width: 0.6;
+  --subdivision-line: var(--country-line); /* drawn thinner and fainter than country borders */
+  --globe-subdivision-width: 0.5;
 
-  /* Type (web fonts are loaded in the milestone 8 styling pass) */
+  /* Globe rings and markers (the renderer reads these) */
+  --ring-width: 1.5;
+  --ring-past-opacity: 0.35;
+  --marker-outline: var(--bg);
+  --marker-faded-opacity: 0.45;
+  --marker-label-size: 11px;
+
+  /* Layout */
+  --hud-width: 560px; /* the in-game box at the top centre */
+  --popup-width: 440px; /* reveal and summary popups */
+  --dialog-width: 520px; /* menu and settings */
+  --globe-rest-offset: 62%; /* start screen: how far the globe sits below its centre */
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1); /* fast start, gentle stop: things arriving */
+  --ease-in: cubic-bezier(0.64, 0, 0.78, 0); /* gentle start, fast finish: things leaving */
+  --slider-thumb-size: 16px; /* roughly the browser's range thumb, for lining up ticks */
+
+  /* Text sizes */
+  --text-xs: 11px;
+  --text-sm: 12px;
+  --text-md: 14px;
+  --text-lg: 18px;
+  --text-xl: 28px;
+  --text-hero: 72px; /* the start-screen title */
+
+  /* Type (Google Fonts, loaded in index.html) */
   --font-display: 'Pixelify Sans', 'Silkscreen', monospace;
   --font-body: 'IBM Plex Mono', ui-monospace, monospace;
   --label-letter-spacing: 0.2em;
@@ -38,4 +68,12 @@
   --space-6: 24px;
   --border-width: 2px;
   --marker-size: 8px;
+}
+
+/* Phones: the globe is smaller (it fits the narrow width), so it rests higher to still show
+   as a horizon. (Media queries can't use variables, so the breakpoint is written here.) */
+@media (max-width: 767px) {
+  :root {
+    --globe-rest-offset: 36%;
+  }
 }

@@ -35,3 +35,15 @@ export function pick<T>(rng: Rng, items: readonly T[]): T {
   if (items.length === 0) throw new Error('pick() from an empty list');
   return items[randInt(rng, items.length)] as T;
 }
+
+/** Index chosen with probability proportional to its weight. */
+export function weightedIndex(rng: Rng, weights: readonly number[]): number {
+  const total = weights.reduce((a, b) => a + b, 0);
+  if (!(total > 0)) throw new Error('weightedIndex() needs a positive total weight');
+  let x = rng() * total;
+  for (let i = 0; i < weights.length; i++) {
+    x -= weights[i]!;
+    if (x < 0) return i;
+  }
+  return weights.length - 1;
+}

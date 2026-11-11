@@ -41,7 +41,7 @@ const broken: KeyValueStorage = {
 
 function finishedGame(seed = 7) {
   const { data } = synthetic();
-  let s = newGame(data, { startCityId: 1, ringWidthKm: 100, ringCount: 2, guessesPerRing: 3 }, seed, NOW);
+  let s = newGame(data, { startCityId: 1, ringWidthKm: 500, ringCount: 2, guessesPerRing: 3 }, seed, NOW);
   s = useHint(data, s);
   s = submitGuess(data, s, 5).state; // outside: doesn't use a guess
   for (const id of [3, 4, 10]) s = submitGuess(data, s, id).state; // 3 wrong: ring 1 missed
@@ -59,7 +59,7 @@ describe('records', () => {
     expect(state.phase).toBe('finished');
     expect(r.rings[0]).toEqual({
       innerKm: 0,
-      outerKm: 100,
+      outerKm: 500,
       answerId: 2,
       guesses: [5, 3, 4, 10],
       status: 'missed',
@@ -128,7 +128,7 @@ describe('history storage', () => {
 describe('settings storage', () => {
   it('remembers the last-used settings', () => {
     const storage = memoryStorage();
-    const s = { ...defaultSettings(), ringWidthKm: 250, measure: 'metro' as const };
+    const s = { ...defaultSettings(), ringWidthKm: 1500, measure: 'metro' as const };
     saveSettings(storage, s);
     expect(loadSettings(storage)).toEqual(s);
   });
@@ -138,6 +138,6 @@ describe('settings storage', () => {
     expect(loadSettings(broken)).toEqual(defaultSettings());
     const storage = memoryStorage();
     storage.setItem(STORAGE_KEYS.settings, JSON.stringify({ ringCount: 50 }));
-    expect(loadSettings(storage).ringCount).toBe(10);
+    expect(loadSettings(storage).ringCount).toBe(8);
   });
 });

@@ -40,3 +40,20 @@ export function loadWorld(detail: Detail): Promise<WorldLayers> {
   }
   return p;
 }
+
+let subdivisions: Promise<FeatureCollection> | null = null;
+
+/** Borders between states/provinces inside each country (only loaded when the
+ *  Subdivisions setting is on). */
+export function loadSubdivisions(): Promise<FeatureCollection> {
+  if (!subdivisions) {
+    subdivisions = fetch(`${import.meta.env.BASE_URL}data/geo/subdivisions.json`)
+      .then((res) => {
+        if (!res.ok) throw new Error(`Could not load subdivisions.json (${res.status})`);
+        return res.json() as Promise<Topology<{ subdivisions: GeometryCollection }>>;
+      })
+      .then((topo) => feature(topo, topo.objects.subdivisions) as FeatureCollection);
+    subdivisions.catch(() => (subdivisions = null));
+  }
+  return subdivisions;
+}

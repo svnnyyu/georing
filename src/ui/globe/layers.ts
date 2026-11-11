@@ -109,3 +109,8 @@ export function prepareWorld(world: WorldLayers): PreparedWorld {
 export function visible(items: Item[], center: [number, number], capRadius: number): Item[] {
   return items.filter((it) => geoDistance(center, it.centroid) <= capRadius + it.radius);
 }
+
+/** Line features (e.g. subdivision borders) as cullable items. */
+export function prepareLines(fc: FeatureCollection): Item[] {
+  return fc.features.filter((f) => f.geometry).map((f) => item(f));
+}

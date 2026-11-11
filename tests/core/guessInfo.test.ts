@@ -9,7 +9,7 @@ describe('guessInfo', () => {
   const { data } = synthetic();
 
   it('shows rank in the ring for in-ring guesses', () => {
-    let state = newGame(data, { startCityId: 1, ringWidthKm: 100, ringCount: 3 }, 1, NOW);
+    let state = newGame(data, { startCityId: 1, ringWidthKm: 500, ringCount: 3 }, 1, NOW);
     state = submitGuess(data, state, 3).state; // Alpha, 2nd of 4
     const info = guessInfo(data, state, 0, 3);
     expect(info).toMatchObject({
@@ -27,18 +27,18 @@ describe('guessInfo', () => {
   });
 
   it('shows the distance outside the ring for outside guesses', () => {
-    let state = newGame(data, { startCityId: 1, ringWidthKm: 100, ringCount: 3 }, 1, NOW);
-    state = submitGuess(data, state, 5).state; // Charlie at 100.1 km
+    let state = newGame(data, { startCityId: 1, ringWidthKm: 500, ringCount: 3 }, 1, NOW);
+    state = submitGuess(data, state, 5).state; // Charlie at 500.4 km
     const info = guessInfo(data, state, 0, 5);
     expect(info.result).toBe('outside');
     expect(info.rank).toBeNull();
-    expect(info.outsideKm).toBe(0); // 0.1 km, rounded
+    expect(info.outsideKm).toBe(0); // 0.4 km, rounded
     const golf = guessInfo(data, submitGuess(data, state, 9).state, 0, 9);
-    expect(golf.outsideKm).toBe(350);
+    expect(golf.outsideKm).toBe(1750);
   });
 
   it('shows both figures and highlights the metro one in Metro mode', () => {
-    let state = newGame(data, { startCityId: 1, ringWidthKm: 100, ringCount: 3, measure: 'metro' }, 1, NOW);
+    let state = newGame(data, { startCityId: 1, ringWidthKm: 500, ringCount: 3, measure: 'metro' }, 1, NOW);
     state = submitGuess(data, state, 3).state;
     const info = guessInfo(data, state, 1, 7); // Echo's metro in ring 2
     expect(info).toMatchObject({

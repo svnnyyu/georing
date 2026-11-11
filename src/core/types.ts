@@ -30,6 +30,8 @@ export interface Metro {
 
 export interface Country {
   name: string;
+  /** GeoNames continent code: AF, AN, AS, EU, NA, OC or SA. */
+  continent?: string;
   aliases: string[];
 }
 
@@ -51,6 +53,8 @@ export interface Settings {
   ringCount: number;
   guessesPerRing: number;
   suggestions: boolean;
+  /** Show states/provinces: their borders on the globe, and in place names. */
+  subdivisions: boolean;
   measure: PopulationMeasure;
   mode: GameMode;
 }
@@ -93,6 +97,8 @@ export interface RingState {
   guesses: Guess[];
   hints: HintState;
   status: RingStatus;
+  /** The player pressed Skip (the ring counts as missed). */
+  skipped?: boolean;
 }
 
 /** playing: guessing in the current ring. ringOver: reveal panel shown, waiting for Next ring.
