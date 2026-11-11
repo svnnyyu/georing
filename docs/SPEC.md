@@ -92,11 +92,11 @@ City data comes from GeoNames (city-proper populations), map shapes come from Na
 
 1. Download the raw files into `pipeline/raw/`, which is git-ignored.
 2. Keep populated places (feature class `P`) with population ≥ 15,000. Drop feature codes `PPLX` (city sections), `PPLH` (historical), `PPLQ` (abandoned), `PPLW` (destroyed) and `PPLCH` (historical capital).
-3. Apply `pipeline/overrides.csv` (columns: geonameid, field, value, note). This fixes bad populations and removes entries, each with a note on why.
-4. Build aliases: from GeoNames alternate names keep Latin-script names, deduplicated after normalization, at most about 10 per city. Then merge `pipeline/aliases_extra.csv` for abbreviations GeoNames lacks (NYC, LA, SF, DC, KL, HCMC, CDMX, and so on).
+3. Fix Chinese populations with `pipeline/china_urban_2020.csv` (2020 census urban-area figures, matched by name + province; sources noted in the file). Chinese cities above 750,000 that are on neither source list are capped at 750,000 (`CN_UNLISTED_CAP`), since the source lists every city above that. Then apply `pipeline/overrides.csv` (columns: geonameid, field, value, note), which wins over everything else. This fixes bad populations and removes entries, each with a note on why.
+4. Build aliases from GeoNames `alternateNamesV2.zip` (it has language tags, unlike the column in `cities15000`). Keep Latin-script names starting with a capital (or tagged `abbr`), deduplicated after normalization, at most 10 per city, ranked: English, abbreviations, the country's own languages, major European languages (fr, de, es, pt, it, nl), then at most 3 untagged names. Other languages are skipped because they are mostly transliterations. Then merge `pipeline/aliases_extra.csv` for abbreviations GeoNames lacks (most, such as NYC, LA, SF, KL, HCMC and CDMX, are already there; DC was added).
 5. Flag well-known cities: population ≥ 500,000, or feature code `PPLC` (national capital).
 6. Write `public/data/cities.json` and `public/data/countries.json` (country code → display name + aliases, such as Turkey/Türkiye).
-7. Simplify the Natural Earth layers to TopoJSON and write them to `public/data/geo/`.
+7. `pipeline/build_geo.py` converts the Natural Earth layers to quantized TopoJSON with [mapshaper](https://github.com/mbloch/mapshaper) (an npm dev dependency): `world-110m.json` (land, countries) and `world-50m.json` (land, countries, lakes) in `public/data/geo/`. Countries keep `cc` (from `ISO_A2_EH`) and `name`. `npm run data` runs both scripts.
 8. Print a sanity report: total city count, the 25 most populous cities, every city above 10 million, and the ring answers for a few test start cities (New York, London, Tokyo, Lagos, Chongqing).
 
 ### City record (in `cities.json`)
@@ -117,10 +117,11 @@ Expect roughly 25,000–30,000 cities and a file of a few MB, which compresses w
 
 ### Known data issues to handle
 
-- **Oversized Chinese "cities":** some GeoNames populations cover whole prefecture-level municipalities (Chongqing is the worst case, around 30 million). Override these with urban-area figures, noting the source in `overrides.csv`.
-- **Boroughs and wards listed as cities:** GeoNames lists some city parts as their own cities, such as Brooklyn alongside New York City. Keep them for now; they are smaller than their home city and rarely the answer. If one shows up as an odd answer in play, remove it through `overrides.csv`.
+- **Oversized Chinese "cities":** many GeoNames populations cover whole prefectures, not just Chongqing (22M in GeoNames, 9.6M urban): Chengdu, Xi'an, Harbin, Weifang and about 180 others. These are replaced with 2020 census urban-area figures from `pipeline/china_urban_2020.csv` (about 290 cities) or capped (about 45; see Open decisions).
+- **Boroughs and wards listed as cities:** GeoNames lists some city parts as their own cities. Smaller ones are kept, but parts that showed up as ring answers for the test start cities are removed through `overrides.csv`: New York's five boroughs, all 86 places inside Greater London, Shanghai's 14 urban districts and Shenzhen's Bao'an. If another one shows up as an odd answer in play, remove it the same way.
+- **Other whole-district figures:** some non-Chinese cities also use municipality or district totals (Ho Chi Minh City 14M, Lahore 13M, Kinshasa 16M). Accepted for the prototype.
 - **Uneven population years:** GeoNames figures come from different census years by country. This is acceptable for a prototype; note it in the credits.
-- **Attribution:** an About/Credits screen must credit GeoNames (CC BY 4.0) and Natural Earth.
+- **Attribution:** an About/Credits screen must credit GeoNames (CC BY 4.0) and Natural Earth, and name the source of the Chinese urban figures (2020 census via citypopulation.de and Wikipedia).
 
 ## Guess matching
 
@@ -275,6 +276,7 @@ ring-city-game/
 │   ├── build_geo.py
 │   ├── overrides.csv
 │   ├── aliases_extra.csv
+│   ├── china_urban_2020.csv  census urban figures for Chinese cities
 │   └── raw/                  downloads (git-ignored)
 ├── public/data/              pipeline output (committed)
 │   ├── cities.json
@@ -378,4 +380,4 @@ The core should allow `mode` to swap the ranking field without other changes, so
 
 ### Open decisions
 
-None right now. Add new ones here as they come up.
+- **Capped Chinese cities (from milestone 2):** about 45 Chinese cities have GeoNames populations above 750,000 but appear on neither urban-population source, so their real urban figure is below 750,000 but unknown (for example Lüliang, Bazhong, Qingyang, Liupanshui). They are capped at 750,000 for now. Options: keep the cap, look up each figure by hand, or find a fuller source.

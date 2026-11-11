@@ -22,6 +22,7 @@ A browser geography game: guess the most populous city inside rings drawn around
 - `npm test` — run unit tests once (`npm run test:watch` to re-run on save)
 - `npm run typecheck` — TypeScript check
 - `npm run build` — production build into `dist/`
+- `npm run data` — rebuild `public/data/` from GeoNames + Natural Earth (downloads ~220 MB into `pipeline/raw/` on first run; stdlib Python 3 + mapshaper)
 
 ## User context
 

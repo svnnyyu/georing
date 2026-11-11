@@ -1,0 +1,509 @@
+# China 2020 census URBAN-AREA populations (城区人口), used to replace GeoNames figures
+# that cover whole prefectures or municipalities. See docs/SPEC.md -> Known data issues.
+# Source: https://en.wikipedia.org/wiki/List_of_cities_in_China_by_population
+#   ("List of major cities by population" + "cities between 100,000 and 1,000,000"),
+#   which cites citypopulation.de. Retrieved 2026-11-11.
+# The first table is complete for cities over 1 million; the second only covers some provinces.
+# Matched to GeoNames by normalized name + province in build_cities.py. overrides.csv wins over this.
+city,province,urban_2020
+Shanghai,municipality,21909814
+Beijing,municipality,18960744
+Shenzhen,Guangdong,17444609
+Guangzhou,Guangdong,16096724
+Chengdu,Sichuan,13568357
+Tianjin,municipality,11052404
+Wuhan,Hubei,10494879
+Dongguan,Guangdong,9644871
+Chongqing,municipality,9580819
+Xi'an,Shaanxi,9392938
+Hangzhou,Zhejiang,9236032
+Foshan,Guangdong,9042509
+Nanjing,Jiangsu,7519814
+Shenyang,Liaoning,7026358
+Zhengzhou,Henan,6461013
+Qingdao,Shandong,6165279
+Suzhou,Jiangsu,5892892
+Jinan,Shandong,5648162
+Changsha,Hunan,5630256
+Kunming,Yunnan,5273144
+Harbin,Heilongjiang,5242897
+Shijiazhuang,Hebei,5090440
+Hefei,Anhui,5055978
+Dalian,Liaoning,4913879
+Xiamen,Fujian,4617251
+Nanning,Guangxi,4582703
+Changchun,Jilin,4557356
+Taiyuan,Shanxi,4303673
+Guiyang,Guizhou,4021275
+Wuxi,Jiangsu,3956985
+Ürümqi,Xinjiang,3842560
+Zhongshan,Guangdong,3841873
+Shantou,Guangdong,3838900
+Ningbo,Zhejiang,3731203
+Fuzhou,Fujian,3723454
+Nanchang,Jiangxi,3518975
+Changzhou,Jiangsu,3187315
+Lanzhou,Gansu,3012577
+Nantong,Jiangsu,2987600
+Huizhou,Guangdong,2900113
+Xuzhou,Jiangsu,2845552
+Zibo,Shandong,2750312
+Linyi,Shandong,2743843
+Wenzhou,Zhejiang,2582017
+Tangshan,Hebei,2549968
+Hohhot,Inner Mongolia,2373399
+Haikou,Hainan,2349239
+Shaoxing,Zhejiang,2333080
+Yantai,Shandong,2311885
+Luoyang,Henan,2230661
+Zhuhai,Guangdong,2207090
+Liuzhou,Guangxi,2204841
+Baotou,Inner Mongolia,2104114
+Handan,Hebei,2095134
+Yangzhou,Jiangsu,2067254
+Weifang,Shandong,1998405
+Baoding,Hebei,1940384
+Datong,Shanxi,1809505
+Huai'an,Jiangsu,1804611
+Jiangmen,Guangdong,1795459
+Ganzhou,Jiangxi,1778132
+Jining,Shandong,1700054
+Xiangyang,Hubei,1686403
+Xining,Qinghai,1677177
+Zunyi,Guizhou,1675245
+Yinchuan,Ningxia,1662968
+Kunshan,Jiangsu,1652159
+Daqing,Heilongjiang,1604027
+Wuhu,Anhui,1598165
+Mianyang,Sichuan,1549499
+Putian,Fujian,1539389
+Qinhuangdao,Hebei,1520199
+Zhuzhou,Hunan,1510148
+Jilin,Jilin,1509292
+Taizhou,Zhejiang,1485502
+Yiwu,Zhejiang,1481384
+Xingtai,Hebei,1480754
+Anshan,Liaoning,1480332
+Quanzhou,Fujian,1469157
+Cixi,Zhejiang,1457510
+Tai'an,Shandong,1416591
+Jinjiang,Fujian,1416151
+Nanyang,Henan,1407616
+Zhanjiang,Guangdong,1400709
+Guilin,Guangxi,1361244
+Yancheng,Jiangsu,1353475
+Zaozhuang,Shandong,1349883
+Taizhou,Jiangsu,1348327
+Shangrao,Jiangxi,1342220
+Weihai,Shandong,1339645
+Zhangjiakou,Hebei,1339384
+Jiangyin,Jiangsu,1331352
+Maoming,Guangdong,1307802
+Heze,Shandong,1293767
+Yichang,Hubei,1284305
+Xinxiang,Henan,1271350
+Huainan,Anhui,1255619
+Nanchong,Sichuan,1254455
+Chaozhou,Guangdong,1254007
+Jieyang,Guangdong,1242906
+Changshu,Jiangsu,1230599
+Fushun,Liaoning,1228890
+Qingyuan,Guangdong,1197581
+Kaifeng,Henan,1193802
+Xianyang,Shaanxi,1192776
+Fuyang,Anhui,1191810
+Jiaxing,Zhejiang,1188321
+Anyang,Henan,1187772
+Hengyang,Hunan,1185130
+Rizhao,Shandong,1147175
+Dazhou,Sichuan,1135817
+Luzhou,Sichuan,1128479
+Yueyang,Hunan,1125448
+Zhenjiang,Jiangsu,1123813
+Baoji,Shaanxi,1107702
+Yibin,Sichuan,1100737
+Changde,Hunan,1100719
+Chifeng,Inner Mongolia,1093068
+Huzhou,Zhejiang,1083953
+Suqian,Jiangsu,1081559
+Wanzhou District,Chongqing,1078149
+Bengbu,Anhui,1077704
+Lianyungang,Jiangsu,1071019
+Lu'an,Anhui,1069940
+Zhangjiagang,Jiangsu,1055893
+Changzhi,Shanxi,1047461
+Pingdingshan,Henan,1045966
+Jinhua,Zhejiang,1040948
+Zhaoqing,Guangdong,1035810
+Shangqiu,Henan,1031123
+Qiqihar,Heilongjiang,1029522
+Jinzhou,Liaoning,1021478
+Liaocheng,Shandong,1020430
+Xinyang,Henan,1014843
+Yuyao,Zhejiang,1013866
+Rui'an,Zhejiang,1012731
+Puning,Guangdong,935668
+Guigang,Guangxi,921440
+Langfang,Hebei,886490
+Hengshui,Hebei,885468
+Yangjiang,Guangdong,859595
+Jiangjin,Chongqing,817888
+Yongchuan,Chongqing,803458
+Shaoguan,Guangdong,803375
+Fuling,Chongqing,801151
+Hechuan,Chongqing,795780
+Sanhe,Hebei,760107
+Cangzhou,Hebei,759403
+Fuqing,Fujian,744774
+Sanya,Hainan,724854
+Boluo,Guangdong,712593
+Jiamusi,Heilongjiang,698557
+Meizhou,Guangdong,694495
+Ordos City,Inner Mongolia,671048
+Heyuan,Guangdong,662950
+Guiping,Guangxi,652210
+Beihai,Guangxi,651091
+Tongliao,Inner Mongolia,647938
+Huidong,Guangdong,640377
+Yanji,Jilin,630612
+Jixi,Heilongjiang,626019
+Kaizhou,Chongqing,608485
+Chengde,Hebei,604354
+Bobai,Guangxi,599279
+Hui'an,Fujian,584053
+Dingzhou,Hebei,577440
+Beiliu,Guangxi,573761
+Lhasa,Tibet,568927
+Hezhou,Guangxi,560686
+Songyuan,Jilin,551749
+Lufeng,Guangdong,545474
+Haifeng,Guangdong,537278
+Bishan,Chongqing,535680
+Binyang,Guangxi,531511
+Wuhai,Inner Mongolia,530877
+Hegang,Heilongjiang,514826
+Dazu,Chongqing,505131
+Qijiang,Chongqing,500510
+Anxi,Fujian,498061
+Yunyang,Chongqing,491309
+Gaozhou,Guangdong,490301
+Siping,Jilin,485710
+Changshou,Chongqing,484331
+Huazhou,Guangdong,472746
+Qian'an,Hebei,466210
+Huanghua,Hebei,465846
+Gaobeidian,Hebei,459369
+Renqiu,Hebei,458878
+Bazhou,Hebei,455923
+Sihui,Guangdong,452536
+Danzhou,Hainan,452158
+Lianjiang,Guangdong,443812
+Huilai,Guangdong,437430
+Taishan,Guangdong,433266
+Kaiping,Guangdong,430035
+Tongliang,Chongqing,423008
+Shizuishan,Ningxia,422043
+Xinyi,Guangdong,418731
+Fangchenggang,Guangxi,416752
+Bayannur,Inner Mongolia,413117
+Leizhou,Guangdong,412291
+Tonghua,Jilin,408403
+Liaoyuan,Jilin,407296
+Tongnan,Chongqing,401323
+Wuzhong,Ningxia,400677
+Rongchang,Chongqing,400527
+Yingde,Guangdong,398066
+Cenxi,Guangxi,397639
+Fu'an,Fujian,397068
+Raoping,Guangdong,394636
+Ulanqab,Inner Mongolia,394269
+Lingshan,Guangxi,391284
+Baishan,Jilin,391234
+Wuchuan,Guangdong,388714
+Gongzhuling,Jilin,384715
+Yunfu,Guangdong,380044
+Baicheng,Jilin,372519
+Hengzhou,Guangxi,372273
+Fengjie,Chongqing,368869
+Xingning,Guangdong,365661
+Binyang,Guangxi,362779
+Yangchun,Guangdong,360359
+Hulunbuir,Inner Mongolia,354442
+Fuding,Fujian,351341
+Nanchuan,Chongqing,348987
+Zhongxian,Chongqing,348004
+Shanwei,Guangdong,345373
+Ningjin,Hebei,342341
+Gu'an,Hebei,342159
+Wenchang,Hainan,341862
+Baise,Guangxi,337516
+Heshan,Guangdong,334432
+Wuhua,Guangdong,331583
+Fengfengkuang,Hebei,327532
+Xilinhot,Inner Mongolia,327112
+Lianjiang,Fujian,323972
+Liangping,Chongqing,323483
+Acheng,Heilongjiang,322530
+Dianjiang,Chongqing,320460
+Ulanhot,Inner Mongolia,318009
+Daming,Hebei,317877
+Luoding,Guangdong,317060
+Hepu,Guangxi,305822
+Caofeidian,Hebei,301242
+Chengmai,Hainan,300915
+Hejian,Hebei,296820
+Meihekou,Jilin,291138
+Linzhang,Hebei,290955
+Suixi,Guangdong,289536
+Qianjiang,Chongqing,288462
+Luanzhou,Hebei,278807
+Fengdu,Chongqing,274294
+Hechi,Guangxi,268122
+Guyuan,Ningxia,267810
+Chongzuo,Guangxi,265077
+Botou,Hebei,264187
+Qionghai,Hainan,262524
+Dehua,Fujian,259496
+Dongfang,Hainan,257936
+Youyang,Chongqing,256260
+Pengshui,Chongqing,256007
+Fengshun,Guangdong,254264
+Qinghe,Hebei,254224
+Yushu,Jilin,253344
+Quyang,Hebei,253213
+Enping,Guangdong,251742
+Jungar,Inner Mongolia,250568
+Zhongwei,Ningxia,249307
+Du'an,Guangxi,245021
+Quzhou,Hebei,244750
+Dunhua,Jilin,241929
+Laoting,Hebei,240945
+Fujin,Heilongjiang,240925
+Yakeshi,Inner Mongolia,239742
+Xuwen,Guangdong,238402
+Jinzhou,Hebei,238153
+Luannan,Hebei,237640
+Cixian,Hebei,235811
+Manzhouli,Inner Mongolia,234932
+Lixian,Hebei,231467
+Dingxing,Hebei,230023
+Pingquan,Hebei,228261
+Changli,Hebei,227270
+Qingxian,Hebei,226363
+Jian'ou,Fujian,226100
+Wanning,Hainan,225608
+Shizhu,Chongqing,225190
+Xiushan,Chongqing,224955
+Jiutai,Jilin,224442
+Helan,Ningxia,222070
+Huaiji,Guangdong,221882
+Pingshan,Hebei,219902
+Jingxian,Hebei,217383
+Dacheng,Hebei,215121
+Bei'an,Heilongjiang,213850
+Longyao,Hebei,212776
+Changting,Fujian,212617
+Huailai,Hebei,211641
+Lingao,Hainan,210779
+Lingchuan,Guangxi,210194
+Jianyang,Fujian,209876
+Jiexi,Guangdong,209233
+Yongning,Ningxia,207698
+Gucheng,Hebei,207499
+Zijin,Guangdong,207394
+Dalad,Inner Mongolia,207102
+Datong,Qinghai,205729
+Dehui,Jilin,202988
+Lingwu,Ningxia,200920
+Wushan,Chongqing,200671
+Qianxi,Hebei,200036
+Lechang,Guangdong,199438
+Longchuan,Guangdong,197714
+Golmud,Qinghai,197153
+Nong'an,Jilin,196832
+Anda,Heilongjiang,196645
+Lishu,Jilin,193144
+Fusui,Guangxi,192689
+Anping,Hebei,191624
+Anguo,Hebei,189925
+Yangxi,Guangdong,189866
+Hunchun,Jilin,189760
+Heihe,Heilongjiang,189471
+Feixiang,Hebei,188215
+Ejin Horo,Inner Mongolia,187774
+Wansheng,Chongqing,187007
+Anxin,Hebei,186713
+Xinxing,Guangdong,185930
+Fusong,Jilin,185588
+Huadian,Jilin,184810
+Hulin,Heilongjiang,184294
+Nangong,Hebei,183450
+Cheng'an,Hebei,181879
+Hailin,Heilongjiang,180669
+Pingxiang,Hebei,177125
+Shulan,Jilin,176692
+Lianzhou,Guangdong,176572
+Wulong,Chongqing,175838
+Zalantun,Inner Mongolia,174049
+Nanxiong,Guangdong,171215
+Dongguang,Hebei,170863
+Fularji,Heilongjiang,170169
+Jiaohe,Jilin,168313
+Alxa,Inner Mongolia,167103
+Hailun,Heilongjiang,164766
+Guangning,Guangdong,164249
+Zhongning,Ningxia,163702
+Panshi,Jilin,163592
+Laishui,Hebei,163459
+Pingluo,Ningxia,163459
+Laiyuan,Hebei,162973
+Binxian,Heilongjiang,162735
+Datian,Fujian,162066
+Qian Gorlos,Jilin,160878
+Gutian,Fujian,160506
+Yunan,Guangdong,160255
+Shuangyang,Jilin,159392
+Lingshui,Hainan,158159
+Guantao,Hebei,157033
+Wuxi,Chongqing,156732
+Baoqing,Heilongjiang,156506
+Dongxing,Guangxi,155538
+Dabu,Guangdong,154719
+Yangshan,Guangdong,154401
+Ningcheng,Inner Mongolia,153827
+Liucheng,Guangxi,151595
+Jingxi,Guangxi,150456
+Fengning,Hebei,148332
+Gaoyang,Hebei,148172
+Lipu,Guangxi,146753
+Shuangliao,Jilin,146716
+Chengde,Hebei,146317
+Longmen,Guangdong,146193
+Rongcheng,Hebei,145215
+Ledong,Hainan,145063
+Aohan,Inner Mongolia,144417
+Julu,Hebei,142982
+Qingtongxia,Ningxia,142349
+Lingshou,Hebei,142289
+Dongshan,Fujian,141511
+Jize,Hebei,141302
+Guangping,Hebei,141156
+Jalaid,Inner Mongolia,141147
+Linxi,Hebei,141043
+Changjiang,Hainan,140954
+Kuancheng,Hebei,140890
+Tongxin,Ningxia,140077
+Longhua,Hebei,138768
+Nanpi,Hebei,137293
+Da'an,Jilin,136823
+Fogang,Guangdong,136789
+Urad Front,Inner Mongolia,136352
+Qinglong,Hebei,135890
+Bayan,Heilongjiang,135099
+Dahua,Guangxi,134949
+Jiagedaqi,Heilongjiang,133790
+Luhe,Guangdong,133178
+Jingxing,Hebei,132756
+Minhe,Qinghai,131715
+Naiman,Inner Mongolia,131429
+Holingol,Inner Mongolia,130239
+Luanping,Hebei,129894
+Oroqen,Inner Mongolia,128919
+Otog,Inner Mongolia,128829
+Fucheng,Hebei,128484
+Ongniud,Inner Mongolia,127237
+Changling,Jilin,125129
+Cangxian,Hebei,125085
+Ledu,Qinghai,125048
+Fuyu,Jilin,124874
+Arun,Inner Mongolia,124589
+Liancheng,Fujian,124550
+Fengkai,Guangdong,124170
+Huinan,Jilin,123574
+Lulong,Hebei,123352
+Kailu,Inner Mongolia,123077
+Fengzhen,Inner Mongolia,122193
+Huzhu,Qinghai,122069
+Horqin Left Middle,Inner Mongolia,119166
+Jarud,Inner Mongolia,118424
+Haiyuan,Ningxia,117462
+Tumed Right,Inner Mongolia,116238
+Neiqiu,Hebei,115960
+Taonan,Jilin,115946
+Ding'an,Hainan,115856
+Heping,Guangdong,115301
+Wengyuan,Guangdong,114951
+Tunchang,Hainan,114523
+Wangqing,Jilin,114193
+Huanan,Heilongjiang,114107
+Hanggin Rear,Inner Mongolia,114058
+Fuchuan,Guangxi,113719
+Boye,Hebei,113588
+Tongyu,Jilin,113347
+Dongfeng,Jilin,112665
+Qiuxian,Hebei,112644
+Wuyuan,Inner Mongolia,112379
+Huanjiang,Guangxi,111118
+Yitong,Jilin,110229
+Linxi,Inner Mongolia,109890
+Bairin,Inner Mongolia,109060
+Dachang,Hebei,109011
+Ewenki,Inner Mongolia,108893
+Harqin,Inner Mongolia,107771
+Ar Horqin,Inner Mongolia,107140
+Horqin Left Back,Inner Mongolia,106278
+Boli,Heilongjiang,106061
+Zhenlai,Jilin,105997
+Tumed Left,Inner Mongolia,105947
+Lianping,Guangdong,105906
+Antu,Jilin,104649
+Mengcun,Hebei,104220
+Liuhe,Jilin,102743
+Fuyu,Heilongjiang,102726
+Xinfeng,Guangdong,102680
+Guangzong,Hebei,102448
+Daxin,Guangxi,101841
+Jiaoling,Guangdong,101777
+Gaoyi,Hebei,100414
+Fuping,Hebei,100321
+Chicheng,Hebei,100137
+# Second source, for prefecture-level cities missing from the Wikipedia tables:
+# https://www.citypopulation.de/en/china/cities/ (2020 census urban population, counted on
+# district/county level). That table covers every city above 750,000, so build_cities.py caps
+# Chinese cities that are on neither list at CN_UNLISTED_CAP. Retrieved 2026-11-11.
+Shiyan,Hubei,954914
+Suzhou,Anhui,920722
+Bozhou,Anhui,750569
+Qujing,Yunnan,976161
+Qinzhou,Guangxi,771052
+Luohe,Henan,807745
+Yixing,Jiangsu,889871
+Xuchang,Henan,850403
+Zigong,Sichuan,868565
+Tianshui,Gansu,752900
+Panjin,Liaoning,980422
+Jiujiang,Jiangxi,957424
+Zoucheng,Shandong,755941
+Huaibei,Anhui,830891
+Yulin,Guangxi,877561
+Jingzhou,Hubei,950215
+Dongying,Shandong,961300
+Laiwu,Shandong,761440
+Xiangtan,Hunan,978000
+Huludao,Liaoning,764241
+Xiaogan,Hubei,742452
+Jiaozuo,Henan,874733
+Benxi,Liaoning,808221
+Chenzhou,Hunan,819883
+Dandong,Liaoning,748983
+Puyang,Henan,824397
+Zhumadian,Henan,754320
+Suining,Sichuan,829356
+Leshan,Sichuan,802817
+Yiyang,Hunan,758408
+Ma'anshan,Anhui,784608
+Zhangzhou,Fujian,845286
+Liaoyang,Liaoning,764504
+Dezhou,Shandong,843372
+Tengzhou,Shandong,937438
+Xintai,Shandong,774715
