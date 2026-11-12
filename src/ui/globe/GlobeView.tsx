@@ -26,8 +26,6 @@ export interface GlobeViewProps {
   subdivisions?: boolean;
   /** Slowly turn the globe (start screen). */
   idleSpin?: boolean;
-  /** Draw the map at low resolution with hard pixel edges (Pixel globe setting). */
-  pixel?: boolean;
   /** Rest the globe low on the screen like a horizon (start screen); it rises and sinks
    *  smoothly when this changes. */
   lowered?: boolean;
@@ -45,7 +43,6 @@ export function GlobeView({
   subdivisions = false,
   idleSpin = false,
   lowered = false,
-  pixel = false,
   onViewChange,
   onMarkerHover,
   onMarkerTap,
@@ -93,10 +90,6 @@ export function GlobeView({
   useEffect(() => {
     globeRef.current?.setOverlay(overlay);
   }, [overlay]);
-
-  useEffect(() => {
-    globeRef.current?.setPixel(pixel);
-  }, [pixel]);
 
   useEffect(() => {
     globeRef.current?.setLowered(lowered, GLOBE_RISE_MS);

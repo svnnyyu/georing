@@ -3,6 +3,7 @@
 
 import {
   EARTH_RADIUS_KM,
+  FAR_SIDE_KM,
   FLY_DURATION_MS,
   FLY_PULLBACK_FIT_FRACTION,
   GLOBE_FIT_FRACTION,
@@ -106,4 +107,13 @@ export function flyPath(from: View, to: View, v: Viewport): FlyPath {
       return { center: center(e), scale: Math.exp(logScale) };
     },
   };
+}
+
+/** Where to point the camera to show a ring around (lat, lon): a ring mostly within the near
+ *  hemisphere is seen from its centre, fitted to its outer edge; one mostly past the halfway
+ *  point (beyond about 10,000 km) can only be seen from the far side, so it is seen from the
+ *  antipode, fitted to its inner edge (which is the outer edge seen from there). */
+export function ringView(lat: number, lon: number, innerKm: number, outerKm: number): { lat: number; lon: number; radiusKm: number } {
+  if ((innerKm + outerKm) / 2 <= FAR_SIDE_KM / 2) return { lat, lon, radiusKm: outerKm };
+  return { lat: -lat, lon: lon > 0 ? lon - 180 : lon + 180, radiusKm: FAR_SIDE_KM - innerKm };
 }

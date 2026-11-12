@@ -10,7 +10,6 @@ import {
   BORDER_OPACITY,
   HINT_FADE_MS,
   HOME_ZOOM,
-  PIXEL_GLOBE_SCALE,
   IDLE_RESUME_MS,
   IDLE_SPIN_DEG_PER_SEC,
   SUBDIVISION_OPACITY,
@@ -32,6 +31,7 @@ import { prepareLines, prepareWorld, visible, type Item, type PreparedWorld } fr
 import { fadeAlpha, updateFading, type Fading } from './fade.ts';
 import { drawOverlay, hitTest, type GlobeOverlay, type ProjectedMarker } from './overlay.ts';
 import { flyPath, scaleExtent, scaleForRadius, wholeEarthScale, type View, type Viewport } from './camera.ts';
+import { Sky } from './sky.ts';
 import { readGlobeTheme, type GlobeTheme } from './theme.ts';
 import {
   decay,
@@ -102,8 +102,8 @@ export class Globe {
    *  height (the start screen's "horizon"), animated between lowered and raised. */
   private lowered = true;
   private lift = { from: 1, to: 1, t0: 0, ms: 0 };
-  private pixel = false;
-  private pixelCanvas: HTMLCanvasElement | null = null;
+  /** Stars behind the globe. */
+  private readonly sky = new Sky();
   private projected: ProjectedMarker[] = [];
   private hovered: string | null = null;
   private dragging = false;
@@ -174,29 +174,6 @@ export class Globe {
     this.hintArea = updateFading(this.hintArea, overlay.hintArea, (a) => `${a.lat},${a.lon},${a.radiusKm}`, now);
     this.overlay = overlay;
     this.requestDraw();
-  }
-
-  /** Pixel globe setting: draw the map at PIXEL_GLOBE_SCALE resolution, scaled up. */
-  setPixel(on: boolean): void {
-    if (on === this.pixel) return;
-    this.pixel = on;
-    this.requestDraw();
-  }
-
-  /** The offscreen canvas for the pixel globe, sized to the viewport and cleared. */
-  private pixelContext(width: number, height: number): CanvasRenderingContext2D {
-    this.pixelCanvas ??= document.createElement('canvas');
-    const c = this.pixelCanvas;
-    const w = Math.ceil(width * PIXEL_GLOBE_SCALE);
-    const h = Math.ceil(height * PIXEL_GLOBE_SCALE);
-    if (c.width !== w || c.height !== h) {
-      c.width = w;
-      c.height = h;
-    }
-    const ctx = c.getContext('2d')!;
-    ctx.setTransform(PIXEL_GLOBE_SCALE, 0, 0, PIXEL_GLOBE_SCALE, 0, 0);
-    ctx.clearRect(0, 0, width, height);
-    return ctx;
   }
 
   /** Lower the globe to rest low on the screen like a horizon (start screen), or raise it to
@@ -518,14 +495,9 @@ export class Globe {
     const start = performance.now();
     const { path, theme } = this;
     const { width, height } = this.viewport;
-    const screen = this.ctx;
-    screen.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
-    screen.clearRect(0, 0, width, height);
-    // The map (layers 1-5 and the rim) draws into ctx: the screen itself, or with the Pixel
-    // globe setting a small offscreen canvas that is scaled up with hard edges afterwards.
-    // Rings, markers and labels always draw sharp on the screen.
-    const ctx = this.pixel ? this.pixelContext(width, height) : screen;
-    path.context(ctx);
+    const ctx = this.ctx;
+    ctx.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
+    ctx.clearRect(0, 0, width, height);
     const now = performance.now();
     const lift = this.liftAt(now);
     const cy = height / 2 + lift * this.theme.globeRestOffset * height;
@@ -554,6 +526,9 @@ export class Globe {
       ctx.fillStyle = color;
       ctx.fill();
     };
+
+    // 0. Stars, behind everything (the globe covers the ones behind it)
+    this.sky.draw(ctx, theme, this.projection.rotate(), width, height, width / 2, cy);
 
     // 1. Ocean and graticule
     fillShape({ type: 'Sphere' }, theme.ocean);
@@ -632,20 +607,9 @@ export class Globe {
     this.projection.precision(RESAMPLE_PRECISION_PX);
     stroke({ type: 'Sphere' }, theme.coast, theme.coastWidth);
 
-    if (ctx !== screen) {
-      const off = ctx.canvas;
-      screen.save();
-      screen.setTransform(1, 0, 0, 1, 0, 0);
-      screen.imageSmoothingEnabled = false;
-      const k = this.dpr / PIXEL_GLOBE_SCALE;
-      screen.drawImage(off, 0, 0, off.width * k, off.height * k);
-      screen.restore();
-      path.context(screen);
-    }
-
     // 6-8. Rings, area hint and markers
     const drawn = drawOverlay(
-      screen,
+      ctx,
       path,
       this.projection,
       theme,

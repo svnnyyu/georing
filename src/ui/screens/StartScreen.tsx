@@ -11,7 +11,10 @@ export function StartScreen({ leaving }: { leaving: boolean }) {
   const startCity = settings.startCityId === null ? null : data.byId.get(settings.startCityId);
   const summary = [
     startCity ? `From ${startCity.name}, ${countryName(data, startCity.cc)}` : 'Random start city',
-    `${settings.ringCount} ring${settings.ringCount > 1 ? 's' : ''} of ${formatKm(settings.ringWidthKm)}`,
+    settings.ringCount === 'all'
+      ? `Rings of ${formatKm(settings.ringWidthKm)} to the far side`
+      : `${settings.ringCount} ring${settings.ringCount > 1 ? 's' : ''} of ${formatKm(settings.ringWidthKm)}`,
+    ...(settings.citiesToFind > 1 ? [`Find the top ${settings.citiesToFind}`] : []),
     settings.measure === 'metro' ? 'Metro areas' : 'City populations',
   ];
   return (

@@ -53,9 +53,9 @@ export function HistoryDialog({ onClose }: { onClose: () => void }) {
       ) : (
         <>
           <p className="score">
-            <span className="score-number text-correct">{stats.solvedPct}%</span>{' '}
+            <span className="score-number text-correct">{stats.foundPct}%</span>{' '}
             <span className="dim">
-              of rings solved in {stats.games} game{stats.games === 1 ? '' : 's'}
+              of cities found in {stats.games} game{stats.games === 1 ? '' : 's'}
             </span>
           </p>
           <section>
@@ -68,13 +68,14 @@ export function HistoryDialog({ onClose }: { onClose: () => void }) {
                     <span className="name">
                       <span className="city">{from?.name ?? 'Unknown city'}</span>{' '}
                       {r.rings.length} × {formatKm(r.settings.ringWidthKm)}
+                      {(r.settings.citiesToFind ?? 1) > 1 ? ` · top ${r.settings.citiesToFind}` : ''}
                       {r.settings.measure === 'metro' ? ' · metro' : ''}
                       <br />
                       {playedAt(r)}
                     </span>
                     <span className="row squares" aria-label={r.rings.map((x) => x.status).join(', ')}>
                       {r.rings.map((x, k) => (
-                        <span key={k} className={ringSquare(x.status)} />
+                        <span key={k} className={ringSquare(x)} />
                       ))}
                     </span>
                   </button>

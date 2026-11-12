@@ -3,7 +3,7 @@
 // write is wrapped in try/catch so the game still plays when storage is unavailable.
 
 import { HISTORY_CAP, STORAGE_KEYS } from '../config.ts';
-import { guessesUsed, sanitizeSettings } from './game.ts';
+import { foundCount, guessesUsed, sanitizeSettings, targetsOf } from './game.ts';
 import type { GameState, HintKind, RingStatus, Settings } from './types.ts';
 
 /** The part of localStorage the game uses. */
@@ -20,8 +20,12 @@ export interface RingRecord {
   /** Unit ids in the order guessed, outside-the-ring guesses included. */
   guesses: number[];
   status: Exclude<RingStatus, 'playing'>;
-  /** Guesses that counted against the limit (outside-the-ring ones don't). */
+  /** In-ring guesses made, right or wrong (outside-the-ring guesses don't count). */
   guessesUsed?: number;
+  /** Cities to find in this ring, and how many were found. Older records lack them: they
+   *  count as 1 target, found if solved. */
+  targets?: number;
+  found?: number;
   /** The player pressed Skip. */
   skipped?: boolean;
   hints: HintKind[];
@@ -54,6 +58,8 @@ export function toRecord(state: GameState): GameRecord {
         // A ring still 'playing' can only appear in an unfinished game; count it as missed.
         status: rs.status === 'playing' ? 'missed' : rs.status,
         guessesUsed: guessesUsed(rs),
+        targets: targetsOf(ring, state.settings).length,
+        found: foundCount(rs),
         ...(rs.skipped ? { skipped: true } : {}),
         hints: rs.hints.used,
       };
@@ -109,25 +115,45 @@ export function clearHistory(storage: KeyValueStorage | null): void {
   }
 }
 
+/** Cities to find in a ring and how many were found (0 and 0 for an empty ring). */
+export function ringScore(ring: RingRecord): { targets: number; found: number } {
+  if (ring.status === 'empty') return { targets: 0, found: 0 };
+  return {
+    targets: ring.targets ?? 1,
+    found: ring.found ?? (ring.status === 'solved' ? 1 : 0),
+  };
+}
+
+/** A game's score: cities found out of cities to find, over all its rings. */
+export function gameScore(record: GameRecord): { targets: number; found: number } {
+  let targets = 0;
+  let found = 0;
+  for (const ring of record.rings) {
+    const s = ringScore(ring);
+    targets += s.targets;
+    found += s.found;
+  }
+  return { targets, found };
+}
+
 export interface HistoryStats {
   games: number;
-  solved: number;
-  missed: number;
-  /** Solved rings as a share of solved + missed (empty rings don't count). 0 with no rings. */
-  solvedPct: number;
+  /** Cities found and cities to find, over every game (partial credit per ring). */
+  found: number;
+  targets: number;
+  /** found as a share of targets, rounded. 0 with no rings. */
+  foundPct: number;
 }
 
 export function historyStats(records: GameRecord[]): HistoryStats {
-  let solved = 0;
-  let missed = 0;
+  let found = 0;
+  let targets = 0;
   for (const r of records) {
-    for (const ring of r.rings) {
-      if (ring.status === 'solved') solved++;
-      else if (ring.status === 'missed') missed++;
-    }
+    const s = gameScore(r);
+    found += s.found;
+    targets += s.targets;
   }
-  const played = solved + missed;
-  return { games: records.length, solved, missed, solvedPct: played ? Math.round((solved / played) * 100) : 0 };
+  return { games: records.length, found, targets, foundPct: targets ? Math.round((found / targets) * 100) : 0 };
 }
 
 /** Seed and settings that replay a saved game exactly. */

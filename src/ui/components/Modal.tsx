@@ -1,7 +1,7 @@
-// A centred popup over a dimmed page (menu, settings, summary). Escape or a click on the
-// dimmed area closes it, when onClose is given.
+// A centred popup over a dimmed page (menu, settings, summary, history). Escape (topmost popup
+// only), the close button or a click on the dimmed area closes it, when onClose is given.
 
-import { useEffect, type ReactNode } from 'react';
+import { useEffect, useRef, type ReactNode } from 'react';
 import { CloseIcon } from './Icons.tsx';
 
 export function Modal({
@@ -17,17 +17,21 @@ export function Modal({
   children: ReactNode;
   wide?: boolean;
 }) {
+  const overlay = useRef<HTMLDivElement>(null);
   useEffect(() => {
     if (!onClose) return;
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
+      if (e.key !== 'Escape') return;
+      // Only the topmost popup closes (e.g. History opened over the summary).
+      const all = document.querySelectorAll('.overlay');
+      if (all[all.length - 1] === overlay.current) onClose();
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, [onClose]);
 
   return (
-    <div className="overlay" onMouseDown={(e) => e.target === e.currentTarget && onClose?.()}>
+    <div ref={overlay} className="overlay" onMouseDown={(e) => e.target === e.currentTarget && onClose?.()}>
       <div className={wide ? 'dialog wide' : 'dialog'} role="dialog" aria-modal="true" aria-label={title}>
         <header className="dialog-head">
           <div>

@@ -1,7 +1,8 @@
 // The game settings (see docs/SPEC.md -> Settings), shown in the Settings popup. Changes
 // are saved straight away and apply to the next game.
 
-import { RING_COUNT, RING_WIDTH_KM } from '../../config.ts';
+import { CITIES_TO_FIND, RING_COUNT, RING_WIDTH_KM } from '../../config.ts';
+import { resolveRingCount } from '../../core/game.ts';
 import { metroOf, PopulationLines } from '../components/Population.tsx';
 import type { PopulationMeasure } from '../../core/types.ts';
 import { CitySearch } from '../components/CitySearch.tsx';
@@ -9,7 +10,10 @@ import { SectionLabel, Slider, Tiles, Toggle } from '../components/Controls.tsx'
 import { formatKm, placeOf } from '../format.ts';
 import { useGame } from '../state/GameProvider.tsx';
 
-const COUNTS = Array.from({ length: RING_COUNT.max - RING_COUNT.min + 1 }, (_, i) => RING_COUNT.min + i);
+const range = (r: { min: number; max: number }) => Array.from({ length: r.max - r.min + 1 }, (_, i) => r.min + i);
+const COUNTS: (number | 'all')[] = [...range(RING_COUNT), 'all'];
+const countLabel = (v: number | 'all') => (v === 'all' ? '∞' : String(v));
+const TO_FIND = range(CITIES_TO_FIND);
 
 export function SettingsForm() {
   const { data, settings, setSettings } = useGame();
@@ -59,7 +63,16 @@ export function SettingsForm() {
           label="Number of rings"
           value={settings.ringCount}
           values={COUNTS}
+          format={(v) => (v === 'all' ? `∞ (${resolveRingCount({ ...settings, ringCount: v })} rings)` : String(v))}
+          formatTick={countLabel}
           onChange={(v) => set({ ringCount: v })}
+        />
+        <Slider
+          label="Number of cities"
+          value={settings.citiesToFind}
+          values={TO_FIND}
+          format={(v) => (v === 1 ? 'The biggest' : `Top ${v}`)}
+          onChange={(v) => set({ citiesToFind: v })}
         />
       </section>
 
@@ -95,7 +108,6 @@ export function SettingsForm() {
           <Toggle label="Suggestions" checked={settings.suggestions} onChange={(v) => set({ suggestions: v })} />
           <Toggle label="Hints" checked={settings.hints} onChange={(v) => set({ hints: v })} />
           <Toggle label="Subdivisions" checked={settings.subdivisions} onChange={(v) => set({ subdivisions: v })} />
-          <Toggle label="Pixel globe" checked={settings.pixelGlobe} onChange={(v) => set({ pixelGlobe: v })} />
         </div>
       </section>
     </div>

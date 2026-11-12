@@ -7,7 +7,7 @@ import {
 } from '../../src/config.ts';
 import { buildGameData, cityOrThrow, unitIdOf } from '../../src/core/data.ts';
 import { destination, distanceKm } from '../../src/core/geo.ts';
-import { areaCircle, circleShares, countryHint, firstLetter, nextHint } from '../../src/core/hints.ts';
+import { areaCircle, circleShares, countryFocus, countryHint, firstLetter, nextHint } from '../../src/core/hints.ts';
 import { createRng } from '../../src/core/random.ts';
 import { buildRings } from '../../src/core/rings.ts';
 import type { City } from '../../src/core/types.ts';
@@ -118,5 +118,31 @@ describe('area circle', () => {
         if (ring.answerId !== null) checkCircles(data, ring, startId);
       }
     }
+  });
+});
+
+describe('country focus', () => {
+  it("is where the country lies within the ring, not the country's own middle", () => {
+    const { data } = realData();
+    const startId = idOf(data, 'Helsinki');
+    const ring = buildRings(data, startId, { widthKm: 1000, ringCount: 1, measure: 'city' })[0]!;
+    const f = countryFocus(data, ring, 'RU')!;
+    // Russia's cities within 1,000 km of Helsinki are around St Petersburg and Moscow, far west
+    // of Russia's middle in Siberia.
+    expect(distanceKm(f, cityOrThrow(data, startId))).toBeLessThan(1000);
+    expect(f.lon).toBeGreaterThan(25);
+    expect(f.lon).toBeLessThan(45);
+    expect(countryFocus(data, ring, 'BR')).toBeNull();
+  });
+
+  it('averages across the date line', () => {
+    const cities: City[] = [
+      { id: 1, name: 'Start', ascii: 'Start', lat: 0, lon: 179, pop: 1e6, cc: 'XX', admin1: '', aliases: [], wellKnown: true },
+      { id: 2, name: 'East', ascii: 'East', lat: 0, lon: 179.5, pop: 2e5, cc: 'YY', admin1: '', aliases: [], wellKnown: false },
+      { id: 3, name: 'West', ascii: 'West', lat: 0, lon: -179.5, pop: 1e5, cc: 'YY', admin1: '', aliases: [], wellKnown: false },
+    ];
+    const data = buildGameData({ cities, metros: [], countries: {} });
+    const ring = buildRings(data, 1, { widthKm: 500, ringCount: 1, measure: 'city' })[0]!;
+    expect(Math.abs(countryFocus(data, ring, 'YY')!.lon)).toBeCloseTo(180, 5);
   });
 });

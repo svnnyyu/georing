@@ -6,19 +6,26 @@ export function SectionLabel({ children }: { children: ReactNode }) {
   return <h3 className="section-label">{children}</h3>;
 }
 
-export interface SliderProps {
+export interface SliderProps<T extends number | string> {
   label: string;
-  value: number;
-  /** The allowed values, in order (they needn't be evenly spaced). */
-  values: readonly number[];
-  format?: (v: number) => string;
-  formatTick?: (v: number) => string;
-  onChange: (v: number) => void;
+  value: T;
+  /** The allowed values, in order (they needn't be evenly spaced, or even numbers). */
+  values: readonly T[];
+  format?: (v: T) => string;
+  formatTick?: (v: T) => string;
+  onChange: (v: T) => void;
 }
 
 /** A slider over a list of values, with a tick and label for each. The range input moves
  *  over the list's positions, so uneven (log-ish) values are evenly spaced on screen. */
-export function Slider({ label, value, values, format = String, formatTick = String, onChange }: SliderProps) {
+export function Slider<T extends number | string>({
+  label,
+  value,
+  values,
+  format = String,
+  formatTick = String,
+  onChange,
+}: SliderProps<T>) {
   const index = Math.max(0, values.indexOf(value));
   return (
     <label className="slider">

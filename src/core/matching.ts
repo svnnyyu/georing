@@ -3,7 +3,7 @@
 // the Krillion-style "autocorrect on Enter" step, and the optional suggestions dropdown.
 
 import { AMBIGUOUS_POP_RATIO, FUZZY_THRESHOLDS, SUGGESTIONS_MAX, SUGGESTIONS_MIN_CHARS } from '../config.ts';
-import { unitIdOf, unitPop, type GameData } from './data.ts';
+import { cityOrThrow, unitIdOf, type GameData } from './data.ts';
 import type { City, PopulationMeasure } from './types.ts';
 
 /** Lowercase, strip accents, hyphens/apostrophes to spaces, drop other punctuation,
@@ -109,27 +109,40 @@ export type Resolution =
 
 const MAX_FUZZY_DISTANCE = Math.max(...FUZZY_THRESHOLDS.map((t) => t.maxDistance));
 
+/** How strongly a matched name points at its unit: the population of the city whose name
+ *  matched, not of the unit it stands for. In Metro mode a small town can belong to a huge
+ *  metro (Perth Amboy to New York); ranking by the metro's size would put New York City
+ *  above Perth for "perth". (In City mode the two are the same.) */
+const matchedPop = (data: GameData, e: NameEntry) => cityOrThrow(data, e.cityId).pop;
+
+/** The units these entries point at, each with its strongest matched population, strongest
+ *  first. */
+function rankUnits(data: GameData, measure: PopulationMeasure, entries: NameEntry[]): { unitId: number; pop: number }[] {
+  const best = new Map<number, number>();
+  for (const e of entries) {
+    const unitId = unitIdOf(data, measure, e.cityId);
+    best.set(unitId, Math.max(best.get(unitId) ?? 0, matchedPop(data, e)));
+  }
+  return [...best].map(([unitId, pop]) => ({ unitId, pop })).sort((a, b) => b.pop - a.pop);
+}
+
 /** Resolve typed text to one unit: exact names, then aliases, then fuzzy. */
 export function resolveGuess(index: MatchIndex, data: GameData, text: string, ctx: MatchContext): Resolution {
   const key = normalize(text);
   if (!key) return { kind: 'none' };
-  const byPop = (a: number, b: number) => unitPop(data, ctx.measure, b) - unitPop(data, ctx.measure, a);
-  const toUnits = (entries: NameEntry[]) =>
-    [...new Set(entries.map((e) => unitIdOf(data, ctx.measure, e.cityId)))].sort(byPop);
-
   const hits = index.exact.get(key);
   if (hits) {
     const names = hits.filter((e) => e.kind === 'name');
-    const units = toUnits(names.length > 0 ? names : hits);
+    const units = rankUnits(data, ctx.measure, names.length > 0 ? names : hits);
     // Prefer in-ring cities; among the candidates, ask only if another is at least
     // AMBIGUOUS_POP_RATIO of the largest's size (two Springfields), not for Dhaka vs a small
     // Dhāka in Bihar.
-    const inRing = units.filter(ctx.inRing);
+    const inRing = units.filter((u) => ctx.inRing(u.unitId));
     const pool = inRing.length > 0 ? inRing : units;
-    const top = unitPop(data, ctx.measure, pool[0]!);
-    const ties = pool.filter((u) => unitPop(data, ctx.measure, u) >= AMBIGUOUS_POP_RATIO * top);
+    const top = pool[0]!.pop;
+    const ties = pool.filter((u) => u.pop >= AMBIGUOUS_POP_RATIO * top).map((u) => u.unitId);
     if (names.length > 0 && ties.length > 1) return { kind: 'ambiguous', unitIds: ties.slice(0, SUGGESTIONS_MAX) };
-    return { kind: 'match', unitId: pool[0]! };
+    return { kind: 'match', unitId: pool[0]!.unitId };
   }
 
   // Fuzzy: best (smallest) distance within each candidate's own threshold.
@@ -154,7 +167,7 @@ export function resolveGuess(index: MatchIndex, data: GameData, text: string, ct
     (a, b) =>
       Number(ctx.inRing(b.unitId)) - Number(ctx.inRing(a.unitId)) ||
       Number(b.entry.kind === 'name') - Number(a.entry.kind === 'name') ||
-      byPop(a.unitId, b.unitId),
+      matchedPop(data, b.entry) - matchedPop(data, a.entry),
   );
   return { kind: 'match', unitId: best[0]!.unitId };
 }
@@ -180,31 +193,34 @@ export function enterGuess(index: MatchIndex, data: GameData, text: string, ctx:
 }
 
 /** The optional suggestions dropdown: up to SUGGESTIONS_MAX units from the whole world,
- *  ranked by prefix match, then fuzzy distance, then population. Never uses ring membership. */
+ *  ranked by prefix match, then fuzzy distance, then the population of the city whose name
+ *  matched (see matchedPop). Never uses ring membership. */
 export function suggest(index: MatchIndex, data: GameData, text: string, measure: PopulationMeasure): number[] {
   const key = normalize(text);
   if (key.length < SUGGESTIONS_MIN_CHARS) return [];
-  const score = new Map<number, number>(); // unit id -> lower is better
-  const consider = (cityId: number, s: number) => {
-    const unitId = unitIdOf(data, measure, cityId);
-    const old = score.get(unitId);
-    if (old === undefined || s < old) score.set(unitId, s);
+  // unit id -> its best match: score (lower is better), then matched population (higher is better)
+  const best = new Map<number, { s: number; pop: number }>();
+  const consider = (e: NameEntry, s: number) => {
+    const unitId = unitIdOf(data, measure, e.cityId);
+    const pop = matchedPop(data, e);
+    const old = best.get(unitId);
+    if (!old || s < old.s || (s === old.s && pop > old.pop)) best.set(unitId, { s, pop });
   };
   for (const [k, entries] of index.exact) {
     if (!k.startsWith(key)) continue;
-    for (const e of entries) consider(e.cityId, e.kind === 'name' ? 0 : 1);
+    for (const e of entries) consider(e, e.kind === 'name' ? 0 : 1);
   }
-  if (score.size < SUGGESTIONS_MAX) {
+  if (best.size < SUGGESTIONS_MAX) {
     const max = maxDistanceFor(key.replace(/ /g, '').length);
     for (let len = key.length - max; len <= key.length + max; len++) {
       for (const e of index.byLength.get(len) ?? []) {
         const d = editDistance(key, e.key, max);
-        if (d <= max) consider(e.cityId, 2 + d);
+        if (d <= max) consider(e, 2 + d);
       }
     }
   }
-  return [...score.entries()]
-    .sort((a, b) => a[1] - b[1] || unitPop(data, measure, b[0]) - unitPop(data, measure, a[0]))
+  return [...best.entries()]
+    .sort((a, b) => a[1].s - b[1].s || b[1].pop - a[1].pop)
     .slice(0, SUGGESTIONS_MAX)
     .map(([id]) => id);
 }

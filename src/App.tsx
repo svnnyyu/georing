@@ -11,6 +11,7 @@ import { loadData, type LoadedData } from './data/loadData.ts';
 import { MenuIcon } from './ui/components/Icons.tsx';
 import { InfoCard, type CardAnchor } from './ui/components/InfoCard.tsx';
 import { RevealPanel } from './ui/components/RevealPanel.tsx';
+import { ringView } from './ui/globe/camera.ts';
 import { GlobeView, type GlobeHandle } from './ui/globe/GlobeView.tsx';
 import type { GlobeOverlay } from './ui/globe/overlay.ts';
 import { MenuDialog, SettingsDialog } from './ui/screens/Dialogs.tsx';
@@ -36,7 +37,6 @@ interface GlobeState {
   up: boolean;
   spin: boolean;
   subdivisions: boolean;
-  pixel: boolean;
 }
 
 type MarkerHandler = (id: string | null, x: number, y: number) => void;
@@ -56,7 +56,6 @@ export default function App() {
     up: false,
     spin: true,
     subdivisions: false,
-    pixel: false,
   });
   const globe = useRef<GlobeHandle>(null);
   const markers = useRef<{ hover?: MarkerHandler; tap?: MarkerHandler }>({});
@@ -77,7 +76,6 @@ export default function App() {
           lowered={!state.up}
           overlay={state.overlay}
           subdivisions={state.subdivisions}
-          pixel={state.pixel}
           idleSpin={state.spin && !state.up}
           onMarkerHover={(id, x, y) => markers.current.hover?.(id, x, y)}
           onMarkerTap={(id, x, y) => markers.current.tap?.(id, x, y)}
@@ -106,12 +104,14 @@ function Game({ controls }: { controls: GlobeControls }) {
   const [card, setCard] = useState<CardAnchor | null>(null);
   const [pinned, setPinned] = useState(false);
   const [dialog, setDialog] = useState<Dialog>(null);
+  // The summary can be closed to look around the globe; a See summary button brings it back.
+  const [summaryOpen, setSummaryOpen] = useState(true);
 
   // Hand the globe what to draw.
   const overlay = useMemo(() => buildOverlay(data, game), [data, game]);
   useEffect(
-    () => setGlobe({ overlay, up: game !== null, subdivisions: settings.subdivisions, pixel: settings.pixelGlobe }),
-    [overlay, game, settings.subdivisions, settings.pixelGlobe, setGlobe],
+    () => setGlobe({ overlay, up: game !== null, subdivisions: settings.subdivisions }),
+    [overlay, game, settings.subdivisions, setGlobe],
   );
 
   // Start screen: shown with no game, and kept briefly while its exit animation plays.
@@ -158,8 +158,9 @@ function Game({ controls }: { controls: GlobeControls }) {
     }
     firstMount.current = false;
     const start = cityOrThrow(data, game.startId);
-    const outer = game.rings[game.current]!.outerKm;
-    const fly = (durationMs?: number) => void globe.current?.flyTo(start.lat, start.lon, outer, durationMs);
+    const ring = game.rings[game.current]!;
+    const view = ringView(start.lat, start.lon, ring.innerKm, ring.outerKm);
+    const fly = (durationMs?: number) => void globe.current?.flyTo(view.lat, view.lon, view.radiusKm, durationMs);
     if (firstRing.current === gameKey) {
       fly(); // next ring: timed by distance
       return;
@@ -173,12 +174,23 @@ function Game({ controls }: { controls: GlobeControls }) {
     return () => window.clearTimeout(t);
   }, [cameraKey]);
 
+  // The country hint: glide the camera (same zoom) to where that country lies in the ring.
+  const hintCountry = game && game.phase === 'playing' ? game.ringStates[game.current]!.hints.country : undefined;
+  const hintCountryKey = hintCountry?.focus ? `${game!.current}:${hintCountry.cc}:${hintCountry.focus.lat}` : null;
+  useEffect(() => {
+    const f = hintCountry?.focus;
+    if (f) void globe.current?.flyTo(f.lat, f.lon, undefined, HINT_PAN_MS);
+  }, [hintCountryKey]);
+
   // The area hint: glide the camera (same zoom) to centre the new dashed circle.
   const hintArea = game && game.phase === 'playing' ? game.ringStates[game.current]!.hints.area : undefined;
   const hintAreaKey = hintArea ? `${hintArea.lat},${hintArea.lon}` : null;
   useEffect(() => {
     if (hintArea) void globe.current?.flyTo(hintArea.lat, hintArea.lon, undefined, HINT_PAN_MS);
   }, [hintAreaKey]);
+
+  // Each game's summary opens when it finishes.
+  useEffect(() => setSummaryOpen(true), [gameKey]);
 
   // A new ring or game closes any open info card.
   useEffect(() => {
@@ -222,7 +234,16 @@ function Game({ controls }: { controls: GlobeControls }) {
       {(!game || leaving) && <StartScreen leaving={leaving && game !== null} />}
       {game && game.phase !== 'finished' && <Hud game={game} />}
       {game && game.phase === 'ringOver' && <RevealPanel game={game} onNext={next} />}
-      {game && game.phase === 'finished' && <SummaryDialog game={game} onHistory={() => setDialog('history')} />}
+      {game && game.phase === 'finished' && summaryOpen && (
+        <SummaryDialog game={game} onHistory={() => setDialog('history')} onClose={() => setSummaryOpen(false)} />
+      )}
+      {game && game.phase === 'finished' && !summaryOpen && (
+        <section className="popup reveal">
+          <button type="button" className="btn primary full" onClick={() => setSummaryOpen(true)}>
+            See summary
+          </button>
+        </section>
+      )}
 
       {dialog === 'menu' && (
         <MenuDialog

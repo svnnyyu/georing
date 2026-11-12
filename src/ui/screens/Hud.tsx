@@ -1,9 +1,10 @@
-// The in-game box at the top centre of the screen: ring, guesses left, Skip, the start city,
-// the guess box and the last guess's outcome. It slides in when a game starts.
+// The in-game box at the top centre of the screen: ring, misses left, Hint, Skip, the start
+// city, progress when there are several cities to find, the guess box and the last guess's
+// outcome. It slides in when a game starts.
 
 import { useEffect, useMemo } from 'react';
-import { EMPTY_RING_ADVANCE_MS, HINTS_PER_RING } from '../../config.ts';
-import { guessesLeft, type GuessOutcome } from '../../core/game.ts';
+import { EMPTY_RING_ADVANCE_MS } from '../../config.ts';
+import { foundCount, guessesLeft, hintsLeft as hintsLeftOf, nextTarget, targetsOf, type GuessOutcome } from '../../core/game.ts';
 import type { GameState } from '../../core/types.ts';
 import { GuessInput } from '../components/GuessInput.tsx';
 import { BulbIcon } from '../components/Icons.tsx';
@@ -11,12 +12,16 @@ import { metroOf, PopulationInline } from '../components/Population.tsx';
 import { formatKm, formatKmRange, placeOf } from '../format.ts';
 import { useGame } from '../state/GameProvider.tsx';
 
-function outcomeMessage(outcome: GuessOutcome, name: string): { text: string; tone: string } {
+/** toFind: the ring's number of cities to find (1 = just the biggest). */
+function outcomeMessage(outcome: GuessOutcome, name: string, toFind: number): { text: string; tone: string } {
   switch (outcome.kind) {
     case 'correct':
-      return { text: `${name} is right!`, tone: 'correct' };
+      return { text: toFind === 1 ? `${name} is right!` : `${name} is #${outcome.rank} in the ring!`, tone: 'correct' };
     case 'wrong':
-      return { text: `${name} is in the ring, but not the biggest`, tone: 'wrong' };
+      return {
+        text: toFind === 1 ? `${name} is in the ring, but not the biggest` : `${name} is in the ring, but not in the top ${toFind}`,
+        tone: 'wrong',
+      };
     case 'outside':
       return { text: `Not in this ring: ${name} is ${formatKm(outcome.outsideKm)} outside`, tone: 'outside' };
     case 'repeat':
@@ -36,7 +41,9 @@ export function Hud({ game }: { game: GameState }) {
   const left = guessesLeft(game);
   const start = data.byId.get(game.startId)!;
   const playing = game.phase === 'playing';
-  const hintsLeft = HINTS_PER_RING - rs.hints.used.length;
+  const hintsLeft = hintsLeftOf(game);
+  const toFind = targetsOf(ring, game.settings).length;
+  const found = foundCount(rs);
 
   // An empty ring shows "No cities in this ring" briefly, then moves on by itself.
   useEffect(() => {
@@ -46,7 +53,9 @@ export function Hud({ game }: { game: GameState }) {
   }, [game.phase, rs.status, game.current, next]);
 
   const message =
-    outcome && playing ? outcomeMessage(outcome.result, data.byId.get(outcome.result.unitId)?.name ?? '') : null;
+    outcome && playing
+      ? outcomeMessage(outcome.result, data.byId.get(outcome.result.unitId)?.name ?? '', toFind)
+      : null;
 
   return (
     <section className="hud" aria-label="Game">
@@ -60,7 +69,7 @@ export function Hud({ game }: { game: GameState }) {
           {game.settings.measure === 'metro' ? ' · metro areas' : ''}
         </span>
         <span className="hud-actions">
-          <span className="row squares" aria-label={`${left} guesses left`}>
+          <span className="row squares" aria-label={`${left} misses left`}>
             {Array.from({ length: game.settings.guessesPerRing }, (_, i) => (
               <span key={i} className={i < game.settings.guessesPerRing - left ? 'sq wrong' : 'sq unused'} />
             ))}
@@ -72,9 +81,9 @@ export function Hud({ game }: { game: GameState }) {
               type="button"
               className="text-btn hint-btn"
               onClick={hint}
-              disabled={!playing || hintsLeft === 0}
+              disabled={!playing || hintsLeft <= 0 || nextTarget(game) === null}
               aria-label={`Hint, ${hintsLeft} left`}
-              title="Shows the answer's country, then an area around it, then its dot and first letter"
+              title="About the biggest city you haven't found: its country, then an area around it, then its dot and first letter"
             >
               <BulbIcon />
               {hintsLeft}
@@ -98,6 +107,11 @@ export function Hud({ game }: { game: GameState }) {
         </span>
         <PopulationInline cityPop={start.pop} metro={metroOf(data, start.id)} measure={game.settings.measure} />
       </div>
+      {toFind > 1 && (
+        <p className="message info">
+          Find the top {toFind} · <span className={found > 0 ? 'text-correct' : undefined}>{found} found</span>
+        </p>
+      )}
       {/* Keys are prefixed so the box (per ring) and the message (per guess) can never share one. */}
       {playing && <GuessInput key={`ring-${game.current}`} inRing={inRing} onGuess={guess} />}
       {message && (

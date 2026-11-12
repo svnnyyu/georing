@@ -1,16 +1,20 @@
 import { describe, expect, it } from 'vitest';
-import { CONTINENT_BALANCE_EXPONENT, GUESSES_PER_RING, RING_CAP } from '../../src/config.ts';
+import { CONTINENT_BALANCE_EXPONENT, FAR_SIDE_KM, GUESSES_PER_RING, RING_CAP } from '../../src/config.ts';
 import {
   currentRing,
   currentRingState,
   defaultSettings,
+  foundCount,
   guessesLeft,
   newGame,
+  nextTarget,
   randomStartCity,
+  resolveRingCount,
   nextRing,
   sanitizeSettings,
   skipRing,
   submitGuess,
+  targetsOf,
   useHint,
 } from '../../src/core/game.ts';
 import { distanceKm } from '../../src/core/geo.ts';
@@ -26,10 +30,10 @@ describe('settings', () => {
       ringWidthKm: 500,
       ringCount: 3,
       guessesPerRing: 3,
+      citiesToFind: 1,
       suggestions: false,
       subdivisions: false,
       hints: true,
-      pixelGlobe: false,
       measure: 'city',
       mode: 'population',
     });
@@ -41,9 +45,32 @@ describe('settings', () => {
     expect(s.ringCount).toBe(RING_CAP);
     expect(s.guessesPerRing).toBe(GUESSES_PER_RING.max); // fixed at 3
     expect(s.measure).toBe('metro');
-    expect(sanitizeSettings({ ringWidthKm: 120 }).ringWidthKm).toBe(500);
+    expect(sanitizeSettings({ ringWidthKm: 120 }).ringWidthKm).toBe(250); // the narrowest option
+    expect(sanitizeSettings({ ringCount: 'all' }).ringCount).toBe('all');
+    expect(sanitizeSettings({ ringCount: 'lots' as never }).ringCount).toBe(3);
     expect(sanitizeSettings({ ringWidthKm: 1400 }).ringWidthKm).toBe(1500);
     expect(sanitizeSettings(null)).toEqual(defaultSettings());
+  });
+});
+
+describe('ring count', () => {
+  const { data } = synthetic();
+
+  it("with 'all', fits every ring that ends before the far side of the Earth", () => {
+    expect(resolveRingCount({ ringCount: 'all', ringWidthKm: 2000 })).toBe(10); // 20,000 km < 20,015
+    expect(resolveRingCount({ ringCount: 'all', ringWidthKm: 1500 })).toBe(13); // 19,500 km; a 14th would pass it
+    expect(resolveRingCount({ ringCount: 'all', ringWidthKm: 250 })).toBe(80);
+    expect(resolveRingCount({ ringCount: 4, ringWidthKm: 250 })).toBe(4);
+    for (const w of [250, 500, 750, 1000, 1500, 2000]) {
+      expect(resolveRingCount({ ringCount: 'all', ringWidthKm: w }) * w).toBeLessThanOrEqual(FAR_SIDE_KM);
+    }
+  });
+
+  it('builds that many rings', () => {
+    const s = newGame(data, { startCityId: 1, ringWidthKm: 2000, ringCount: 'all' }, 1, NOW);
+    expect(s.rings).toHaveLength(10);
+    expect(s.rings.at(-1)!.outerKm).toBe(20000);
+    expect(s.settings.ringCount).toBe('all');
   });
 });
 
@@ -139,7 +166,7 @@ describe('guessing', () => {
     let s = start({ measure: 'metro' });
     s = nextRing(submitGuess(data, s, 3).state); // Alpha solves ring 1 (Suburb is part of the start metro)
     const r = submitGuess(data, s, 6); // Delta -> Echo's metro, ring 2's answer
-    expect(r.outcome).toEqual({ kind: 'correct', unitId: 7 });
+    expect(r.outcome).toEqual({ kind: 'correct', unitId: 7, rank: 1 });
   });
 });
 
@@ -170,7 +197,12 @@ describe('rings, hints and the end of the game', () => {
   it('gives the three hints in order, then no more', () => {
     let s: GameState = newGame(data, { startCityId: 1, ringWidthKm: 500, ringCount: 3 }, 7, NOW);
     s = useHint(data, s);
-    expect(currentRingState(s).hints).toEqual({ used: ['country'], country: { cc: 'XX', name: 'Exland' } });
+    expect(currentRingState(s).hints).toEqual({
+      used: ['country'],
+      for: 2,
+      shown: ['country'],
+      country: { cc: 'XX', name: 'Exland', focus: expect.objectContaining({ lat: expect.any(Number) }) },
+    });
     s = useHint(data, s);
     const area = currentRingState(s).hints.area!;
     expect(distanceKm(area, data.byId.get(currentRing(s).answerId!)!)).toBeLessThan(area.radiusKm);
@@ -187,5 +219,59 @@ describe('rings, hints and the end of the game', () => {
   it('gives the same hint circle when a game is replayed', () => {
     const play = () => useHint(data, useHint(data, newGame(data, { startCityId: 1 }, 99, NOW)));
     expect(currentRingState(play()).hints.area).toEqual(currentRingState(play()).hints.area);
+  });
+});
+
+describe('finding several cities per ring', () => {
+  const { data } = synthetic();
+  // City measure, ring 1 (0-500 km): Suburb (2) > Alpha (3) > Bravo (4) > Springfield (10).
+  const start = (citiesToFind: number) =>
+    newGame(data, { startCityId: 1, ringWidthKm: 500, ringCount: 2, citiesToFind }, 7, NOW);
+
+  it('targets the top N, found in any order; finds are free and the ring ends when all are found', () => {
+    let s = start(3);
+    expect(targetsOf(currentRing(s), s.settings)).toEqual([2, 3, 4]);
+    let r = submitGuess(data, s, 4); // Bravo, the 3rd
+    expect(r.outcome).toEqual({ kind: 'correct', unitId: 4, rank: 3 });
+    s = r.state;
+    s = submitGuess(data, s, 10).state; // Springfield: in the ring but not a target
+    expect(guessesLeft(s)).toBe(2);
+    s = submitGuess(data, s, 2).state;
+    expect(s.phase).toBe('playing');
+    r = submitGuess(data, s, 3);
+    expect(r.state.phase).toBe('ringOver');
+    expect(currentRingState(r.state).status).toBe('solved');
+    expect(foundCount(currentRingState(r.state))).toBe(3);
+  });
+
+  it('ends after 3 misses, keeping the ones found', () => {
+    let s = start(2);
+    s = submitGuess(data, s, 3).state; // Alpha: a target
+    for (const id of [4, 10]) s = submitGuess(data, s, id).state; // two misses
+    expect(s.phase).toBe('playing');
+    s = submitGuess(data, s, 5).state; // outside: doesn't count
+    expect(s.phase).toBe('playing');
+    s = newGame(data, { startCityId: 1, ringWidthKm: 500, ringCount: 2, citiesToFind: 1 }, 7, NOW);
+    for (const id of [3, 4, 10]) s = submitGuess(data, s, id).state;
+    expect(currentRingState(s).status).toBe('missed');
+  });
+
+  it('caps the targets at the cities in the ring', () => {
+    const s = newGame(data, { startCityId: 1, ringWidthKm: 500, ringCount: 3, citiesToFind: 5 }, 7, NOW);
+    expect(targetsOf(s.rings[2]!, s.settings)).toHaveLength(2); // ring 3 holds 2 cities
+  });
+
+  it('points hints at the biggest target not found, starting over when it is found', () => {
+    let s = start(2);
+    s = useHint(data, s);
+    expect(currentRingState(s).hints).toMatchObject({ for: 2, shown: ['country'] });
+    s = submitGuess(data, s, 2).state; // found the hinted city: its hints clear
+    expect(currentRingState(s).hints).toEqual({ used: ['country'] });
+    expect(nextTarget(s)).toBe(3);
+    s = useHint(data, s);
+    expect(currentRingState(s).hints).toMatchObject({ used: ['country', 'country'], for: 3, shown: ['country'] });
+    s = useHint(data, s);
+    expect(currentRingState(s).hints.shown).toEqual(['country', 'area']);
+    expect(useHint(data, s)).toBe(s); // 3 hints per ring in all
   });
 });

@@ -3,15 +3,22 @@
 
 // --- Geometry ---
 export const EARTH_RADIUS_KM = 6371;
-export const RING_CAP = 8; // with the widest rings, 8 × 2,000 km stays short of the far side of the Earth
+export const RING_CAP = 10; // with the widest rings, 10 × 2,000 km stays just short of the far side of the Earth
+// The far side of the Earth (the start city's antipode) is half the circumference away.
+export const FAR_SIDE_KM = Math.PI * EARTH_RADIUS_KM; // about 20,015 km
 
 // --- Setup sliders: [min, max, step, default] ---
 // Ring width choices, roughly log-spaced (each step ×1.33–1.5) so the slider moves evenly
 // from "regional" to "continental".
-export const RING_WIDTH_KM = { options: [500, 750, 1000, 1500, 2000], default: 500 } as const;
+export const RING_WIDTH_KM = { options: [250, 500, 750, 1000, 1500, 2000], default: 500 } as const;
+// 1 to RING_CAP rings, or 'all': rings keep coming until the next one would pass the far side
+// of the Earth (so floor(FAR_SIDE_KM / width) rings).
 export const RING_COUNT = { min: 1, max: RING_CAP, step: 1, default: 3 } as const;
-// Fixed at 3 for now (min = max, so there is no slider).
+// Wrong in-ring guesses allowed per ring (finding a target is free). Fixed at 3 for now
+// (min = max, so there is no slider).
 export const GUESSES_PER_RING = { min: 3, max: 3, step: 1, default: 3 } as const;
+// How many of each ring's most populous cities the player must find (the "targets").
+export const CITIES_TO_FIND = { min: 1, max: 5, step: 1, default: 1 } as const;
 
 // --- City data ---
 export const MIN_CITY_POPULATION = 15_000;
@@ -58,10 +65,24 @@ export const FLY_PULLBACK_FIT_FRACTION = 0.75;
 export const MIN_VIEW_WIDTH_KM = 100; // closest zoom: this many km across the shorter side
 export const GRATICULE_STEP_DEG = 10;
 export const GLOBE_FIT_FRACTION = 0.9; // globe diameter vs shorter screen side, whole-Earth view
-// Pixel globe setting: the map is drawn at this share of CSS-pixel resolution, then scaled up
-// with hard edges (0.5 = 2×2 CSS px blocks). Rings, markers and labels stay sharp on top.
-export const PIXEL_GLOBE_SCALE = 0.5;
 export const HOME_ZOOM = 1.2; // start screen globe size, relative to the whole-Earth view
+// Stars behind the globe: fixed points on a sky sphere that turns with the globe but doesn't
+// zoom. The sky is projected so its visible half spans skyScale × the screen's diagonal.
+// Placement is seeded, so the sky looks the same every visit.
+export const STARS = {
+  count: 1000,
+  seed: 20261111,
+  skyScale: 0.75,
+  /** Star sizes in CSS px: most are small squares, some bigger squares, and a few bright
+   *  ones a pixel "+" (a square with four arms of the same size). */
+  smallPx: 2,
+  bigPx: 3,
+  bigShare: 0.15,
+  plusShare: 0.02,
+  /** Brightness range (opacity) of a star; "+" stars are always at the top of it. */
+  minAlpha: 0.25,
+  maxAlpha: 0.75,
+} as const;
 export const GLOBE_MIN_ZOOM = 0.8; // furthest zoom out, relative to the whole-Earth view
 export const GLOBE_START_VIEW = { lat: 20, lon: 10 } as const;
 // perSpinRadian: extra time for turning the view around a pole (spin angle × sin(latitude),

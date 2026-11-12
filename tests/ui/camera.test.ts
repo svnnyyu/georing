@@ -1,9 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { EARTH_RADIUS_KM, MIN_VIEW_WIDTH_KM, RING_FIT_FRACTION } from '../../src/config.ts';
+import { EARTH_RADIUS_KM, FAR_SIDE_KM, MIN_VIEW_WIDTH_KM, RING_FIT_FRACTION } from '../../src/config.ts';
 import {
   angleBetween,
   flyPath,
   interpolateCenter,
+  ringView,
   scaleExtent,
   scaleForRadius,
   wholeEarthScale,
@@ -75,5 +76,16 @@ describe('fly-to path', () => {
     const b = { center: [139.7, 35.7] as [number, number], scale: 20_000 };
     const mid = flyPath(a, b, vp).at(0.5).scale;
     expect(mid).toBeLessThan(2000);
+  });
+});
+
+describe('ring view', () => {
+  it('looks at near rings from the start and far rings from the antipode', () => {
+    expect(ringView(51.5, -0.1, 0, 1000)).toEqual({ lat: 51.5, lon: -0.1, radiusKm: 1000 });
+    const far = ringView(51.5, -0.1, 16000, 18000);
+    expect(far.lat).toBe(-51.5);
+    expect(far.lon).toBeCloseTo(179.9);
+    expect(far.radiusKm).toBeCloseTo(FAR_SIDE_KM - 16000);
+    expect(ringView(-33.9, 151.2, 14000, 16000).lon).toBeCloseTo(-28.8);
   });
 });

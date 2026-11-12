@@ -24,6 +24,7 @@
   --title: #e4fbf2; /* pale mint title text */
   --glitch-a: #2fd27a; /* title split: green offset */
   --glitch-b: #2f8fe8; /* and blue offset */
+  --star: #cfe9ff; /* stars behind the globe */
   --scanline: rgba(0, 0, 0, 0.12); /* one dark line every --scanline-gap, over the whole page */
   --vignette: rgba(2, 4, 10, 0.5); /* darkened screen corners */
   --shadow: rgba(2, 4, 10, 0.55); /* hard pixel drop shadow under buttons and panels */

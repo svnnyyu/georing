@@ -171,3 +171,25 @@ describe('suggest', () => {
     expect(new Set(ids).size).toBe(ids.length);
   });
 });
+
+describe('Metro mode ranks by the city whose name matched', () => {
+  const { data, index } = realData();
+  const ctx = { measure: 'metro' as const, inRing: () => false };
+  const names = (text: string) => suggest(index, data, text, 'metro').map((id) => nameOf(data, id));
+
+  it('suggests Santiago and Perth first, not a giant metro with a small namesake in it', () => {
+    // Perth Amboy is part of New York's metro, and a small "Santiago…" is part of Mexico
+    // City's: those metros are far bigger, but the names typed belong to smaller cities.
+    expect(names('perth')[0]).toBe('Perth');
+    expect(names('santiago')[0]).toBe('Santiago');
+    expect(names('santiago')).not.toContain('Mexico City');
+    expect(names('sa')[0]).toBe('São Paulo');
+  });
+
+  it('still resolves a member city to its metro when that is the only match', () => {
+    const r = resolveGuess(index, data, 'Newark', ctx);
+    expect(r.kind === 'match' && nameOf(data, r.unitId)).toBe('New York City');
+    const p = resolveGuess(index, data, 'perth', ctx);
+    expect(p.kind === 'match' && data.byId.get(p.unitId)!.cc).toBe('AU');
+  });
+});

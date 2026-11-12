@@ -43,6 +43,30 @@ export function circleShares(data: GameData, circle: AreaCircle, ring: Ring, sta
   return { inRing: inRing / HINT_AREA_SAMPLES, land: land / HINT_AREA_SAMPLES };
 }
 
+/** Where a country lies within a ring: the average position of the ring's units in that
+ *  country (averaged as directions on the sphere, so it works across the date line). A big
+ *  country's own middle can be far from the ring (Russia's is in Siberia), which is why this
+ *  uses only the part inside the ring. null if the ring has none there. */
+export function countryFocus(data: GameData, ring: Ring, cc: string): LatLon | null {
+  let x = 0;
+  let y = 0;
+  let z = 0;
+  let n = 0;
+  const rad = Math.PI / 180;
+  for (const id of ring.unitIds) {
+    const c = cityOrThrow(data, id);
+    if (c.cc !== cc) continue;
+    const lat = c.lat * rad;
+    const lon = c.lon * rad;
+    x += Math.cos(lat) * Math.cos(lon);
+    y += Math.cos(lat) * Math.sin(lon);
+    z += Math.sin(lat);
+    n++;
+  }
+  if (n === 0) return null;
+  return { lat: Math.atan2(z, Math.hypot(x, y)) / rad, lon: Math.atan2(y, x) / rad };
+}
+
 /** Hint 2: a circle that contains the answer. Its diameter is 2 × HINT_AREA_RADIUS_FRACTION
  *  of the ring width, and its centre is offset from the answer in a random direction, by a
  *  random share of the radius up to HINT_AREA_MAX_OFFSET_FRACTION (spread evenly over the

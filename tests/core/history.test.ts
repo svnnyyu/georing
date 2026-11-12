@@ -3,6 +3,7 @@ import { HISTORY_CAP, STORAGE_KEYS } from '../../src/config.ts';
 import { defaultSettings, newGame, nextRing, skipRing, submitGuess, useHint } from '../../src/core/game.ts';
 import {
   clearHistory,
+  gameScore,
   historyStats,
   loadHistory,
   loadSettings,
@@ -64,9 +65,11 @@ describe('records', () => {
       guesses: [5, 3, 4, 10],
       status: 'missed',
       guessesUsed: 3, // the outside guess doesn't count
+      targets: 1,
+      found: 0,
       hints: ['country'],
     });
-    expect(r.rings[1]).toMatchObject({ answerId: 7, guesses: [6, 7], status: 'solved', guessesUsed: 2, hints: [] });
+    expect(r.rings[1]).toMatchObject({ answerId: 7, guesses: [6, 7], status: 'solved', guessesUsed: 2, targets: 1, found: 1, hints: [] });
     expect(r.rings[1]!.skipped).toBeUndefined();
   });
 
@@ -137,8 +140,18 @@ describe('history storage', () => {
 
   it('computes totals', () => {
     const r = toRecord(finishedGame());
-    expect(historyStats([r, r])).toEqual({ games: 2, solved: 2, missed: 2, solvedPct: 50 });
-    expect(historyStats([])).toEqual({ games: 0, solved: 0, missed: 0, solvedPct: 0 });
+    expect(historyStats([r, r])).toEqual({ games: 2, found: 2, targets: 4, foundPct: 50 });
+    expect(historyStats([])).toEqual({ games: 0, found: 0, targets: 0, foundPct: 0 });
+  });
+
+  it('gives partial credit for rings with several cities to find', () => {
+    const r = toRecord(finishedGame());
+    const partial = { ...r, rings: [{ ...r.rings[0]!, targets: 3, found: 2 }, r.rings[1]!] };
+    expect(gameScore(partial)).toEqual({ targets: 4, found: 3 });
+    expect(historyStats([partial]).foundPct).toBe(75);
+    // Records saved before the setting existed: one target, found if solved.
+    const old = { ...r, rings: r.rings.map(({ targets: _t, found: _f, ...rest }) => rest) };
+    expect(gameScore(old)).toEqual({ targets: 2, found: 1 });
   });
 });
 
@@ -155,6 +168,6 @@ describe('settings storage', () => {
     expect(loadSettings(broken)).toEqual(defaultSettings());
     const storage = memoryStorage();
     storage.setItem(STORAGE_KEYS.settings, JSON.stringify({ ringCount: 50 }));
-    expect(loadSettings(storage).ringCount).toBe(8);
+    expect(loadSettings(storage).ringCount).toBe(10);
   });
 });

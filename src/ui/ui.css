@@ -370,6 +370,11 @@
   bottom: var(--space-4);
 }
 
+/* In the reveal, the list's own row padding already spaces it from its label. */
+.popup .section-label {
+  margin-bottom: 0;
+}
+
 .reveal-headline {
   margin: 0;
   font-family: var(--font-display);
@@ -699,10 +704,9 @@ input[type='range']:focus-visible {
   outline: none;
 }
 
-/* A turquoise block cursor where the browser supports one (a thin one elsewhere). */
+/* A thin turquoise cursor. (A block cursor was tried and dropped.) */
 .input {
   caret-color: var(--accent);
-  caret-shape: block;
 }
 
 .slider {
@@ -924,6 +928,15 @@ input[type='range']:focus-visible {
 .log-row .num {
   color: var(--text-dim);
   white-space: nowrap;
+}
+
+.log-row .num.target {
+  color: var(--accent);
+}
+
+/* A ring where some, but not all, of the cities to find were found. */
+.sq.partial {
+  background: var(--outside);
 }
 
 .log-row .city {

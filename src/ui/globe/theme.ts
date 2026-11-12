@@ -30,6 +30,7 @@ export interface GlobeTheme {
   markerFadedOpacity: number;
   /** Start screen: how far the globe's centre rests below the screen's centre (share of height). */
   globeRestOffset: number;
+  star: string;
   /** CSS font shorthand for marker labels. */
   labelFont: string;
 }
@@ -59,6 +60,7 @@ export function readGlobeTheme(el: Element = document.documentElement): GlobeThe
     accent: color('--accent'),
     globeRestOffset: num('--globe-rest-offset', 0.6),
     hint: color('--hint'),
+    star: color('--star'),
     hintFillOpacity: num('--hint-fill-opacity', 0.18),
     hintWidth: num('--hint-width', 1.5),
     hintDash: [num('--hint-dash', 6), num('--hint-gap', 4)],
