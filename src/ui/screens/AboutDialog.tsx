@@ -20,6 +20,10 @@ export function AboutDialog({ onClose }: { onClose: () => void }) {
         <SectionLabel>How to play</SectionLabel>
         <ul className="about-list">
           <li>Rings are drawn around a start city. Name the most populous city inside each one.</li>
+          <li>
+            In Countries mode, name the country with the most people living inside the ring: only the part of it inside the
+            ring counts.
+          </li>
           <li>Wrong guesses inside the ring cost one of 3 misses; guesses outside it are free.</li>
           <li>Stuck? The lightbulb gives up to 3 hints: the country, an area, then the city's dot and first letter.</li>
           <li>Settings change the ring size, the number of rings, how many top cities to find, and city or metro populations.</li>
@@ -37,6 +41,11 @@ export function AboutDialog({ onClose }: { onClose: () => void }) {
             Metro areas: GHS Urban Centre Database R2024A, European Commission, Joint Research Centre (2024),{' '}
             <Ext href="https://doi.org/10.2905/1a338be6-7eaf-480c-9664-3a8ade88cbcd">doi:10.2905/1a338be6</Ext>. © European
             Union, reused with acknowledgement.
+          </li>
+          <li>
+            People inside each ring (Countries mode): GHS-POP R2023A population grid, European Commission, Joint Research
+            Centre, <Ext href="https://doi.org/10.2905/2FF68A52-5B5B-4A22-8F40-C41DA8332CFE">doi:10.2905/2ff68a52</Ext>. ©
+            European Union, reused with acknowledgement.
           </li>
           <li>
             Urban populations of Chinese cities: 2020 census of China, via Thomas Brinkhoff:{' '}

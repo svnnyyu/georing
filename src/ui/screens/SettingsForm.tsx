@@ -6,6 +6,7 @@ import { resolveRingCount } from '../../core/game.ts';
 import { metroOf, PopulationLines } from '../components/Population.tsx';
 import type { PopulationMeasure } from '../../core/types.ts';
 import { CitySearch } from '../components/CitySearch.tsx';
+import { ModeTiles } from '../components/ModeTiles.tsx';
 import { SectionLabel, Slider, Tiles, Toggle } from '../components/Controls.tsx';
 import { formatKm, placeOf } from '../format.ts';
 import { useGame } from '../state/GameProvider.tsx';
@@ -17,11 +18,17 @@ const TO_FIND = range(CITIES_TO_FIND);
 
 export function SettingsForm() {
   const { data, settings, setSettings } = useGame();
+  const countries = settings.mode === 'countries';
   const set = (patch: Partial<typeof settings>) => setSettings({ ...settings, ...patch });
   const startCity = settings.startCityId === null ? null : data.byId.get(settings.startCityId);
 
   return (
     <div className="stack">
+      <section>
+        <SectionLabel>Mode</SectionLabel>
+        <ModeTiles />
+      </section>
+
       <section>
         <SectionLabel>Start city</SectionLabel>
         <Tiles
@@ -68,7 +75,7 @@ export function SettingsForm() {
           onChange={(v) => set({ ringCount: v })}
         />
         <Slider
-          label="Number of cities"
+          label={countries ? 'Number of countries' : 'Number of cities'}
           value={settings.citiesToFind}
           values={TO_FIND}
           format={(v) => (v === 1 ? 'The biggest' : `Top ${v}`)}
@@ -81,24 +88,12 @@ export function SettingsForm() {
         <Tiles<PopulationMeasure>
           label="Population measure"
           options={[
-            { value: 'city', label: 'City' },
-            { value: 'metro', label: 'Metro' },
+            // Countries mode counts everyone in the ring, so City / Metro doesn't apply.
+            { value: 'city', label: 'City', disabled: countries },
+            { value: 'metro', label: 'Metro', disabled: countries },
           ]}
           value={settings.measure}
           onChange={(v) => set({ measure: v })}
-        />
-      </section>
-
-      <section>
-        <SectionLabel>Mode</SectionLabel>
-        <Tiles
-          label="Mode"
-          options={[
-            { value: 'population', label: 'Population' },
-            { value: 'density', label: 'Density', disabled: true },
-          ]}
-          value="population"
-          onChange={() => {}}
         />
       </section>
 
@@ -108,7 +103,7 @@ export function SettingsForm() {
           <Toggle label="Suggestions" checked={settings.suggestions} onChange={(v) => set({ suggestions: v })} />
           <Toggle label="Hints" checked={settings.hints} onChange={(v) => set({ hints: v })} />
           <Toggle label="Subdivisions" checked={settings.subdivisions} onChange={(v) => set({ subdivisions: v })} />
-          <Toggle label="Sound effects" checked={settings.sound} onChange={(v) => set({ sound: v })} soundAlways />
+          <Toggle label="Sound Effects" checked={settings.sound} onChange={(v) => set({ sound: v })} soundAlways />
         </div>
       </section>
     </div>

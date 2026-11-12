@@ -8,7 +8,7 @@ import {
   HINT_AREA_SAMPLES,
   HINT_AREA_TRIES,
 } from '../config.ts';
-import { cityOrThrow, countryName, type GameData } from './data.ts';
+import { cityOrThrow, type GameData } from './data.ts';
 import { destination, distanceKm, type LatLon } from './geo.ts';
 import { isLand } from './land.ts';
 import type { Rng } from './random.ts';
@@ -18,12 +18,6 @@ export const HINT_ORDER: readonly HintKind[] = ['country', 'area', 'letter'];
 
 export function nextHint(used: readonly HintKind[]): HintKind | null {
   return HINT_ORDER.find((h) => !used.includes(h)) ?? null;
-}
-
-/** Hint 1: the answer's country. */
-export function countryHint(data: GameData, answerId: number): { cc: string; name: string } {
-  const cc = cityOrThrow(data, answerId).cc;
-  return { cc, name: countryName(data, cc) };
 }
 
 const GOLDEN_ANGLE = 180 * (3 - Math.sqrt(5)); // degrees
@@ -73,8 +67,7 @@ export function countryFocus(data: GameData, ring: Ring, cc: string): LatLon | n
  *  disc), so the answer can be anywhere inside, not just in the middle. Placements are tried
  *  until one lies mostly inside the ring and over land (HINT_AREA_MIN_IN_RING,
  *  HINT_AREA_MIN_LAND); if none does, the one that comes closest is used. */
-export function areaCircle(data: GameData, ring: Ring, answerId: number, start: LatLon, rng: Rng): AreaCircle {
-  const answer = cityOrThrow(data, answerId);
+export function areaCircle(data: GameData, ring: Ring, answer: LatLon, start: LatLon, rng: Rng): AreaCircle {
   const radiusKm = HINT_AREA_RADIUS_FRACTION * (ring.outerKm - ring.innerKm);
   let best: AreaCircle | null = null;
   let bestShort = Infinity;

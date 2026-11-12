@@ -152,6 +152,7 @@
 }
 
 .start-screen.leaving .btn.hero,
+.start-screen.leaving .start-modes,
 .start-screen.leaving .start-meta {
   animation: leave-down var(--start-exit-ms) var(--ease-in) forwards;
 }
@@ -190,6 +191,11 @@
   letter-spacing: var(--label-letter-spacing);
   text-transform: uppercase;
   font-size: var(--text-sm);
+}
+
+/* Cities / Countries, above Start game and as wide as it. */
+.start-modes {
+  width: min(420px, 100%);
 }
 
 .btn.hero {

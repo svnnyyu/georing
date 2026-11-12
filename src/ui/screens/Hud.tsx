@@ -12,7 +12,12 @@ import { formatKm, formatKmRange, placeOf } from '../format.ts';
 import { useGame } from '../state/GameProvider.tsx';
 
 /** toFind: the ring's number of cities to find (1 = just the biggest). */
-function outcomeMessage(outcome: GuessOutcome, name: string, toFind: number): { text: string; tone: string } {
+function outcomeMessage(
+  outcome: GuessOutcome,
+  name: string,
+  toFind: number,
+  countries: boolean,
+): { text: string; tone: string } {
   switch (outcome.kind) {
     case 'correct':
       return { text: toFind === 1 ? `${name} is right!` : `${name} is #${outcome.rank} in the ring!`, tone: 'correct' };
@@ -26,7 +31,7 @@ function outcomeMessage(outcome: GuessOutcome, name: string, toFind: number): { 
     case 'repeat':
       return { text: `Already guessed ${name}`, tone: 'info' };
     case 'start':
-      return { text: `${name} is the start city`, tone: 'info' };
+      return { text: countries ? `${name} is the start country` : `${name} is the start city`, tone: 'info' };
     case 'ignored':
       return { text: '', tone: 'info' };
   }
@@ -53,7 +58,7 @@ export function Hud({ game }: { game: GameState }) {
 
   const message =
     outcome && playing
-      ? outcomeMessage(outcome.result, data.byId.get(outcome.result.unitId)?.name ?? '', toFind)
+      ? outcomeMessage(outcome.result, data.byId.get(outcome.result.unitId)?.name ?? '', toFind, game.settings.mode === 'countries')
       : null;
 
   return (
@@ -65,7 +70,7 @@ export function Hud({ game }: { game: GameState }) {
         </span>
         <span className="dim small hud-band">
           {formatKmRange(ring.innerKm, ring.outerKm)}
-          {game.settings.measure === 'metro' ? ' · metro areas' : ''}
+          {game.settings.mode === 'countries' ? ' · countries' : game.settings.measure === 'metro' ? ' · metro areas' : ''}
         </span>
         <span className="hud-actions">
           <span className="row squares" aria-label={`${left} misses left`}>
@@ -83,7 +88,11 @@ export function Hud({ game }: { game: GameState }) {
               onClick={hint}
               disabled={!playing || hintsLeft <= 0 || nextTarget(game) === null}
               aria-label={`Hint, ${hintsLeft} left`}
-              title="About the biggest city you haven't found: its country, then an area around it, then its dot and first letter"
+              title={
+                game.settings.mode === 'countries'
+                  ? 'Every country in the ring, then circles where the answers\' people live, then their first letters'
+                  : 'For the cities left to find: their countries, then circles around them, then their dots and first letters'
+              }
             >
               <BulbIcon />
               {hintsLeft}

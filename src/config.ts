@@ -17,6 +17,9 @@ export const RING_COUNT = { min: 1, max: RING_CAP, step: 1, default: 3 } as cons
 // Wrong in-ring guesses allowed per ring (finding a target is free). Fixed at 3 for now
 // (min = max, so there is no slider).
 export const GUESSES_PER_RING = { min: 3, max: 3, step: 1, default: 3 } as const;
+// Countries mode: a country counts as "in" a ring only with at least this many people inside
+// it (stray grid squares at a border shouldn't make it an answer).
+export const COUNTRY_MIN_PEOPLE_IN_RING = 1000;
 // How many of each ring's most populous cities the player must find (the "targets").
 export const CITIES_TO_FIND = { min: 1, max: 5, step: 1, default: 1 } as const;
 

@@ -19,6 +19,9 @@ export interface GlobeTheme {
   accent: string;
   hint: string;
   hintFillOpacity: number;
+  /** Countries mode: tint of a guessed country (now, and from earlier rings). */
+  countryFillOpacity: number;
+  countryFillFadedOpacity: number;
   hintWidth: number;
   hintDash: [number, number];
   correct: string;
@@ -62,6 +65,8 @@ export function readGlobeTheme(el: Element = document.documentElement): GlobeThe
     hint: color('--hint'),
     star: color('--star'),
     hintFillOpacity: num('--hint-fill-opacity', 0.18),
+    countryFillOpacity: num('--country-fill-opacity', 0.3),
+    countryFillFadedOpacity: num('--country-fill-faded-opacity', 0.12),
     hintWidth: num('--hint-width', 1.5),
     hintDash: [num('--hint-dash', 6), num('--hint-gap', 4)],
     correct: color('--correct'),

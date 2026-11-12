@@ -5,6 +5,7 @@
 // (Newark -> New York City), and the unit's population is the metro's. Cities outside
 // every metro are their own unit with their city population.
 
+import { countryUnits, decodeGrid, type CountryGrid } from './countries.ts';
 import type { City, Country, LandMask, Metro, PopulationMeasure, RawData } from './types.ts';
 
 export interface GameData {
@@ -17,6 +18,10 @@ export interface GameData {
   /** Unit ids per measure, most populous first (computed once). */
   units: Record<PopulationMeasure, number[]>;
   land?: LandMask;
+  /** Countries mode: the population grid, and an entry per country (also in byId, never in
+   *  cities), most populous first. */
+  grid?: CountryGrid;
+  countryUnits: City[];
 }
 
 export function buildGameData(raw: RawData): GameData {
@@ -35,10 +40,19 @@ export function buildGameData(raw: RawData): GameData {
     city: listUnits(partial, 'city'),
     metro: listUnits(partial, 'metro'),
   };
-  return { ...partial, units, ...(raw.land ? { land: raw.land } : {}) };
+  const grid = raw.population ? decodeGrid(raw.population) : undefined;
+  const countryList = grid ? countryUnits(grid, raw.countries) : [];
+  for (const c of countryList) byId.set(c.id, c);
+  return {
+    ...partial,
+    units,
+    countryUnits: countryList,
+    ...(raw.land ? { land: raw.land } : {}),
+    ...(grid ? { grid } : {}),
+  };
 }
 
-type DataWithoutUnits = Omit<GameData, 'units'>;
+type DataWithoutUnits = Omit<GameData, 'units' | 'countryUnits'>;
 
 function metroOf(data: DataWithoutUnits, city: City): Metro | undefined {
   return city.metro === undefined ? undefined : data.metros.get(city.metro);

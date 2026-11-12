@@ -1,11 +1,11 @@
 // Test data: a small synthetic world with cities at exact distances, and a loader for the
 // real data files in public/data/.
 
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { buildGameData, type GameData } from '../../src/core/data.ts';
 import { destination } from '../../src/core/geo.ts';
 import { buildMatchIndex, type MatchIndex } from '../../src/core/matching.ts';
-import type { City, Country, LandMask, Metro } from '../../src/core/types.ts';
+import type { City, Country, LandMask, Metro, PopulationFile } from '../../src/core/types.ts';
 
 export const START = { lat: 10, lon: 20 };
 
@@ -77,6 +77,9 @@ export function realData(): { data: GameData; index: MatchIndex } {
         metros: read<Metro[]>('metros.json'),
         countries: read<Record<string, Country>>('countries.json'),
         land,
+        ...(existsSync(new URL('../../public/data/population.json', import.meta.url))
+          ? { population: read<PopulationFile>('population.json') }
+          : {}),
       }),
       index: buildMatchIndex(cities),
     };

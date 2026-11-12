@@ -38,5 +38,6 @@ export function rankInRing(ring: Ring, unitId: number): number | null {
 
 /** The ring's top units with their populations, for the reveal panel. */
 export function topUnits(data: GameData, ring: Ring, measure: PopulationMeasure, n: number) {
-  return ring.unitIds.slice(0, n).map((id) => ({ unitId: id, pop: unitPop(data, measure, id) }));
+  // Countries mode: the people inside the ring, not the whole country.
+  return ring.unitIds.slice(0, n).map((id, i) => ({ unitId: id, pop: ring.pops?.[i] ?? unitPop(data, measure, id) }));
 }

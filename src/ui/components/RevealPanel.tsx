@@ -20,7 +20,10 @@ export function RevealPanel({ game, onNext }: { game: GameState; onNext: () => v
   const found = foundCount(rs);
   // Short, and shown in uppercase: "Solved · 2 guesses", "Missed · Lahore", "Skipped · 1 of 3 found".
   let headline: React.ReactNode;
-  if (rs.status === 'empty') headline = <span className="dim">No cities in this ring</span>;
+  if (rs.status === 'empty')
+    headline = (
+      <span className="dim">{game.settings.mode === 'countries' ? 'No countries in this ring' : 'No cities in this ring'}</span>
+    );
   else if (rs.status === 'solved') {
     const n = guessesUsed(rs);
     headline = <span className="text-correct">Solved · {n} {n === 1 ? 'guess' : 'guesses'}</span>;

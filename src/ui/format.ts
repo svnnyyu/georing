@@ -1,5 +1,6 @@
 // Number and place-name formatting for the UI.
 
+import { CONTINENT_NAMES } from '../core/countries.ts';
 import { countryName, type GameData } from '../core/data.ts';
 import { normalize } from '../core/matching.ts';
 
@@ -36,6 +37,11 @@ function shared(data: GameData): Set<string> {
 export function placeOf(data: GameData, cityId: number, opts: { regions?: boolean; list?: boolean } = {}): string {
   const c = data.byId.get(cityId);
   if (!c) return '';
+  // A country (Countries mode) is placed by its continent.
+  if (c.isCountry) {
+    const code = data.countries[c.cc]?.continent ?? '';
+    return CONTINENT_NAMES[code] ?? code;
+  }
   const country = countryName(data, c.cc);
   const usable = c.admin1 && c.admin1 !== c.name && c.admin1 !== country;
   const show = usable && (opts.regions || (opts.list && shared(data).has(normalize(c.name))));

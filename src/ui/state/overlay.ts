@@ -1,9 +1,10 @@
 // Turns the game state into what the globe draws: rings so far, city markers and hints.
 
 import { cityOrThrow, type GameData } from '../../core/data.ts';
+import { pointInRing } from '../../core/countries.ts';
 import { targetsOf } from '../../core/game.ts';
-import type { GameState } from '../../core/types.ts';
-import type { GlobeMarker, GlobeOverlay, MarkerKind } from '../globe/overlay.ts';
+import type { GameState, Ring } from '../../core/types.ts';
+import type { GlobeMarker, GlobeOverlay, MarkerKind, RingClip } from '../globe/overlay.ts';
 
 /** Marker ids: "start", "<ring>:<unitId>" for guesses, "<ring>:answer:<unitId>" for a
  *  revealed target the player didn't find. */
@@ -35,37 +36,61 @@ export function buildOverlay(data: GameData, game: GameState | null): GlobeOverl
     current: i === game.current && game.phase !== 'finished',
   }));
   const markers: GlobeMarker[] = [{ id: 'start', lon: start.lon, lat: start.lat, kind: 'start', label: start.name }];
+  const countryFills: NonNullable<GlobeOverlay['countryFills']> = [];
+  const clipOf = (r: Ring): RingClip => ({ lat: start.lat, lon: start.lon, innerKm: r.innerKm, outerKm: r.outerKm });
   game.rings.slice(0, game.current + 1).forEach((ring, i) => {
     const rs = game.ringStates[i]!;
     const faded = i < game.current || game.phase === 'finished';
-    for (const g of rs.guesses) {
-      const c = cityOrThrow(data, g.unitId);
-      const kind: MarkerKind = g.result;
-      markers.push({ id: `${i}:${g.unitId}`, lon: c.lon, lat: c.lat, kind, label: c.name, faded });
-    }
+    const add = (id: string, unitId: number, kind: MarkerKind) => {
+      const c = cityOrThrow(data, unitId);
+      if (!c.isCountry) {
+        markers.push({ id, lon: c.lon, lat: c.lat, kind, label: c.name, faded });
+        return;
+      }
+      // Countries mode: the name sits where the country's people in this ring live (its own
+      // middle when it has none there), and only its part inside the ring is tinted.
+      const p = pointInRing(ring, unitId) ?? c;
+      markers.push({ id, lon: p.lon, lat: p.lat, kind, label: c.name, faded, labelOnly: true });
+      if (kind !== 'outside') countryFills.push({ cc: c.cc, kind, faded, clip: clipOf(ring) });
+    };
+    for (const g of rs.guesses) add(`${i}:${g.unitId}`, g.unitId, g.result);
     // A lost ring reveals every target the player didn't find, in green.
     if (rs.status === 'missed') {
       const guessed = new Set(rs.guesses.map((g) => g.unitId));
-      for (const t of targetsOf(ring, game.settings)) {
-        if (guessed.has(t)) continue;
-        const c = cityOrThrow(data, t);
-        markers.push({ id: `${i}:answer:${t}`, lon: c.lon, lat: c.lat, kind: 'correct', label: c.name, faded });
-      }
+      for (const t of targetsOf(ring, game.settings)) if (!guessed.has(t)) add(`${i}:answer:${t}`, t, 'correct');
     }
   });
-  // Hints for the ring being played (cleared when the next ring starts).
-  const hints = game.phase === 'finished' ? undefined : game.ringStates[game.current]!.hints;
-  // Letter hint: the hinted city's dot, labelled with only its first letter ("N****"; always
-  // four stars, so they don't give away the name's length). Gone once the ring is over, when
-  // the answers themselves are shown.
-  if (hints?.letter && hints.for !== undefined && game.phase === 'playing') {
-    const c = cityOrThrow(data, hints.for);
-    markers.push({ id: 'hint', lon: c.lon, lat: c.lat, kind: 'hint', label: `${hints.letter}${LETTER_HINT_MASK}` });
+  // Hints for the ring being played (cleared when the next ring starts). Circles and letters
+  // are for targets not found yet: each goes when its target is found.
+  const ring = game.rings[game.current]!;
+  const rs = game.ringStates[game.current]!;
+  const hints = game.phase === 'finished' ? undefined : rs.hints;
+  const found = new Set(rs.guesses.filter((g) => g.result === 'correct').map((g) => g.unitId));
+  // Letter hint: each target's dot, labelled with only its first letter ("N****"; always four
+  // stars, so they don't give away the name's length). Gone once the ring is over, when the
+  // answers themselves are shown.
+  if (game.phase === 'playing') {
+    for (const l of hints?.letters ?? []) {
+      if (found.has(l.unitId)) continue;
+      // (Countries mode: just the letter over the area, like the country names.)
+      markers.push({
+        id: `hint:${l.unitId}`,
+        lon: l.at.lon,
+        lat: l.at.lat,
+        kind: 'hint',
+        label: `${l.letter}${LETTER_HINT_MASK}`,
+        ...(game.settings.mode === 'countries' ? { labelOnly: true } : {}),
+      });
+    }
   }
+  const hintAreas = (hints?.areas ?? []).filter((a) => !found.has(a.unitId)).map((a) => a.circle);
   return {
     rings,
     markers,
-    ...(hints?.country ? { hintCountry: hints.country.cc } : {}),
-    ...(hints?.area ? { hintArea: hints.area } : {}),
+    ...(countryFills.length ? { countryFills } : {}),
+    ...(hints?.countries
+      ? { hintCountries: { ccs: hints.countries.ccs, ...(hints.countries.inRing ? { clip: clipOf(ring) } : {}) } }
+      : {}),
+    ...(hintAreas.length ? { hintAreas } : {}),
   };
 }

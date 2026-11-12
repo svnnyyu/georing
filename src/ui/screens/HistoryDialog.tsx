@@ -78,7 +78,7 @@ export function HistoryDialog({
                       <span className="city">{from?.name ?? 'Unknown city'}</span>{' '}
                       {r.rings.length} × {formatKm(r.settings.ringWidthKm)}
                       {(r.settings.citiesToFind ?? 1) > 1 ? ` · top ${r.settings.citiesToFind}` : ''}
-                      {r.settings.measure === 'metro' ? ' · metro' : ''}
+                      {r.settings.mode === 'countries' ? ' · countries' : r.settings.measure === 'metro' ? ' · metro' : ''}
                       <br />
                       {playedAt(r)}
                     </span>

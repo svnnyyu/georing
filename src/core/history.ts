@@ -26,6 +26,8 @@ export interface RingRecord {
    *  count as 1 target, found if solved. */
   targets?: number;
   found?: number;
+  /** Countries mode: the answer's people inside the ring (not the whole country). */
+  answerPop?: number;
   /** The player pressed Skip. */
   skipped?: boolean;
   hints: HintKind[];
@@ -59,6 +61,7 @@ export function toRecord(state: GameState): GameRecord {
         status: rs.status === 'playing' ? 'missed' : rs.status,
         guessesUsed: guessesUsed(rs),
         targets: targetsOf(ring, state.settings).length,
+        ...(ring.pops?.[0] !== undefined ? { answerPop: ring.pops[0] } : {}),
         found: foundCount(rs),
         ...(rs.skipped ? { skipped: true } : {}),
         hints: rs.hints.used,

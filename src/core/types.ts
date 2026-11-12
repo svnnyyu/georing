@@ -14,6 +14,8 @@ export interface City {
   wellKnown: boolean;
   /** GHSL urban-centre id, when the city lies inside one. */
   metro?: number;
+  /** Countries mode: this entry stands for a whole country (see data.ts countryUnitId). */
+  isCountry?: true;
 }
 
 /** One metro (GHSL urban centre) as stored in public/data/metros.json. */
@@ -43,6 +45,17 @@ export interface LandMask {
   bits: Uint8Array;
 }
 
+/** population.json: people per country per res-degree square (Countries mode). For each
+ *  country, a flat list [square, people, square, people, ...] where each square index is the
+ *  difference from the previous one; square index = row × width + column, rows from 90°N,
+ *  columns from 180°W. */
+export interface PopulationFile {
+  res: number;
+  width: number;
+  height: number;
+  countries: Record<string, number[]>;
+}
+
 /** The data files, as loaded. */
 export interface RawData {
   cities: City[];
@@ -50,11 +63,15 @@ export interface RawData {
   countries: Record<string, Country>;
   /** Optional: without it the area hint ignores land and water. */
   land?: LandMask;
+  /** Optional: needed for Countries mode. */
+  population?: PopulationFile;
 }
 
 /** City = each city on its own; Metro = cities merged into their GHSL urban centre. */
 export type PopulationMeasure = 'city' | 'metro';
-export type GameMode = 'population';
+/** cities: name the most populous city in each ring. countries: name the country with the most
+ *  people living inside the ring (only the part of it inside the ring counts). */
+export type GameMode = 'cities' | 'countries';
 
 export interface Settings {
   /** null = random from the well-known pool (drawn with the game's seed). */
@@ -85,6 +102,10 @@ export interface Ring {
   unitIds: number[];
   /** Most populous unit, or null for an empty ring. */
   answerId: number | null;
+  /** Countries mode: people of each unit inside the ring (same order as unitIds) ... */
+  pops?: number[];
+  /** ... and where they live: the centre of the unit's people inside the ring. */
+  points?: { lat: number; lon: number }[];
 }
 
 export type GuessResult = 'correct' | 'wrong' | 'outside';
@@ -102,18 +123,20 @@ export interface AreaCircle {
   radiusKm: number;
 }
 
+/** The hints taken in a ring. Each covers every target not yet found when it was taken (up
+ *  to Number of cities / countries); a target's circle and letter go once it is found. */
 export interface HintState {
   /** Every hint taken this ring, in order (the per-ring budget, and history). */
   used: HintKind[];
-  /** The target the hints shown now are about: the biggest one not yet found when they were
-   *  taken. Finding it clears them, and the next hint starts over for the next target. */
-  for?: number;
-  /** Hints shown now, for that target. */
-  shown?: HintKind[];
-  /** focus: where that country lies within the ring (the camera pans there). */
-  country?: { cc: string; name: string; focus?: { lat: number; lon: number } };
-  area?: AreaCircle;
-  letter?: string;
+  /** Hint 1: countries to tint. Cities mode: the countries of the targets left; Countries
+   *  mode: every country with people in the ring, tinted only inside it (inRing). focus: where
+   *  the camera glides. */
+  countries?: { ccs: string[]; inRing: boolean; focus?: { lat: number; lon: number } };
+  /** Hint 2: a circle around each target left. */
+  areas?: { unitId: number; circle: AreaCircle }[];
+  /** Hint 3: each target left as a dot with its first letter (at the city, or where the
+   *  country's people in the ring live). */
+  letters?: { unitId: number; letter: string; at: { lat: number; lon: number } }[];
 }
 
 export type RingStatus = 'playing' | 'solved' | 'missed' | 'empty';

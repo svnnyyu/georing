@@ -43,6 +43,8 @@
   --marker-faded-opacity: 0.45;
   --marker-label-size: 11px;
   --hint-fill-opacity: 0.18; /* country hint tint */
+  --country-fill-opacity: 0.3; /* Countries mode: a guessed country's tint */
+  --country-fill-faded-opacity: 0.12; /* and from earlier rings */
   --hint-width: 1.5;
   --hint-dash: 6; /* area circle: dash length (px) */
   --hint-gap: 4; /* and gap */

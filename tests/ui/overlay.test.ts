@@ -35,11 +35,23 @@ describe('globe overlay from game state', () => {
 
   it('shows the current ring\'s country and area hints', () => {
     let game = newGame(data, { startCityId: 1, ringWidthKm: 500, ringCount: 3 }, 1, NOW);
-    expect(buildOverlay(data, game).hintCountry).toBeUndefined();
+    expect(buildOverlay(data, game).hintCountries).toBeUndefined();
     game = useHint(data, useHint(data, game));
     const o = buildOverlay(data, game);
-    expect(o.hintCountry).toBe('XX');
-    expect(o.hintArea?.radiusKm).toBeGreaterThan(0);
+    expect(o.hintCountries).toEqual({ ccs: ['XX'] }); // whole countries in Cities mode
+    expect(o.hintAreas?.[0]?.radiusKm).toBeGreaterThan(0);
+  });
+
+  it("drops a target's circle and letter once it is found", () => {
+    let game = newGame(data, { startCityId: 1, ringWidthKm: 500, ringCount: 3, citiesToFind: 2 }, 1, NOW);
+    for (let i = 0; i < 3; i++) game = useHint(data, game);
+    let o = buildOverlay(data, game);
+    expect(o.hintAreas).toHaveLength(2);
+    expect(o.markers.filter((m) => m.kind === 'hint')).toHaveLength(2);
+    game = submitGuess(data, game, 2).state; // Suburb, one of the two
+    o = buildOverlay(data, game);
+    expect(o.hintAreas).toHaveLength(1);
+    expect(o.markers.filter((m) => m.kind === 'hint').map((m) => m.id)).toEqual(['hint:3']);
   });
 
   it('parses marker ids back to rings and cities', () => {

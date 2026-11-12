@@ -1,6 +1,7 @@
 // Contents of the guess info card shown when hovering a guessed city's marker
 // (see docs/SPEC.md -> Guess info card).
 
+import { CONTINENT_NAMES, countryOutsideKm } from './countries.ts';
 import { cityOrThrow, countryName, unitPop, type GameData } from './data.ts';
 import { distanceKm, distanceOutsideKm } from './geo.ts';
 import { rankInRing } from './rings.ts';
@@ -24,6 +25,8 @@ export interface GuessInfo {
   rank: { position: number; of: number } | null;
   /** "120 km outside": for guesses outside the ring. */
   outsideKm: number | null;
+  /** Countries mode: pop is the people inside the ring, cityPop the whole country's. */
+  isCountry: boolean;
 }
 
 export function guessInfo(data: GameData, state: GameState, ringIndex: number, unitId: number): GuessInfo {
@@ -34,7 +37,26 @@ export function guessInfo(data: GameData, state: GameState, ringIndex: number, u
   const measure = state.settings.measure;
   const guess = state.ringStates[ringIndex]?.guesses.find((g) => g.unitId === unitId);
   const position = rankInRing(ring, unitId);
-  const d = distanceKm(cityOrThrow(data, state.startId), city);
+  const start = cityOrThrow(data, state.startId);
+  if (city.isCountry) {
+    const continent = data.countries[city.cc]?.continent ?? '';
+    const outside = position === null ? countryOutsideKm(data.grid ?? new Map(), city.cc, start, ring) : null;
+    return {
+      unitId,
+      name: city.name,
+      admin1: '',
+      country: CONTINENT_NAMES[continent] ?? continent,
+      result: guess?.result ?? null,
+      cityPop: city.pop,
+      metro: null,
+      measure,
+      pop: position === null ? 0 : (ring.pops?.[position - 1] ?? 0),
+      rank: position === null ? null : { position, of: ring.unitIds.length },
+      outsideKm: outside === null ? null : Math.round(outside),
+      isCountry: true,
+    };
+  }
+  const d = distanceKm(start, city);
   return {
     unitId,
     name: city.name,
@@ -47,5 +69,6 @@ export function guessInfo(data: GameData, state: GameState, ringIndex: number, u
     pop: unitPop(data, measure, unitId),
     rank: position === null ? null : { position, of: ring.unitIds.length },
     outsideKm: position === null ? Math.round(distanceOutsideKm(d, ring.innerKm, ring.outerKm)) : null,
+    isCountry: false,
   };
 }

@@ -31,7 +31,8 @@ export function GameSummary({ record }: { record: GameRecord }) {
   const { data, settings } = useGame();
   const { found, targets } = gameScore(record);
   // One city per ring reads as rings solved; several as cities found.
-  const unit = (record.settings.citiesToFind ?? 1) > 1 ? 'cities found' : 'rings solved';
+  const countries = record.settings.mode === 'countries';
+  const unit = (record.settings.citiesToFind ?? 1) > 1 ? (countries ? 'countries found' : 'cities found') : 'rings solved';
   const from = data.byId.get(record.startId);
 
   return (
@@ -59,11 +60,12 @@ export function GameSummary({ record }: { record: GameRecord }) {
                       {placeOf(data, answer.id, { regions: settings.subdivisions })}
                     </>
                   ) : (
-                    'No cities'
+                    countries ? 'No countries' : 'No cities'
                   )}
                   <br />
                   {formatKmRange(ring.innerKm, ring.outerKm)}
-                  {answer ? ` · ${formatPop(unitPop(data, record.settings.measure, answer.id))}` : ''}
+                  {/* Countries mode: the answer's people inside the ring. */}
+                  {answer ? ` · ${formatPop(ring.answerPop ?? unitPop(data, record.settings.measure, answer.id))}` : ''}
                 </span>
                 <span className="num">{ringStatus(ring)}</span>
               </div>

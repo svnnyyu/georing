@@ -7,6 +7,7 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type RefObject } from 'react';
 import { FLY_START_MS, GLOBE_RISE_MS, HINT_PAN_MS, HUD_ENTER_MS, START_EXIT_MS } from './config.ts';
 import { cityOrThrow } from './core/data.ts';
+import { sphereCentre } from './core/geo.ts';
 import { loadData, type LoadedData } from './data/loadData.ts';
 import { MenuIcon } from './ui/components/Icons.tsx';
 import { InfoCard, type CardAnchor } from './ui/components/InfoCard.tsx';
@@ -85,7 +86,7 @@ export default function App() {
         />
       </div>
       {loaded ? (
-        <GameProvider data={loaded.data} index={loaded.index}>
+        <GameProvider data={loaded.data} index={loaded.index} countryIndex={loaded.countryIndex}>
           <Game controls={controls} />
         </GameProvider>
       ) : (
@@ -185,20 +186,19 @@ function Game({ controls }: { controls: GlobeControls }) {
     return () => window.clearTimeout(t);
   }, [cameraKey]);
 
-  // The country hint: glide the camera (same zoom) to where that country lies in the ring.
-  const hintCountry = game && game.phase === 'playing' ? game.ringStates[game.current]!.hints.country : undefined;
-  const hintCountryKey = hintCountry?.focus ? `${game!.current}:${hintCountry.cc}:${hintCountry.focus.lat}` : null;
+  // Hints: the camera glides (same zoom) to the hinted countries' part of the ring, then to
+  // the middle of the dashed circles.
+  const ringHints = game && game.phase === 'playing' ? game.ringStates[game.current]!.hints : undefined;
+  const countriesFocus = ringHints?.countries?.focus;
+  const countriesKey = countriesFocus ? `${game!.current}:c:${countriesFocus.lat},${countriesFocus.lon}` : null;
   useEffect(() => {
-    const f = hintCountry?.focus;
-    if (f) void globe.current?.flyTo(f.lat, f.lon, undefined, HINT_PAN_MS);
-  }, [hintCountryKey]);
-
-  // The area hint: glide the camera (same zoom) to centre the new dashed circle.
-  const hintArea = game && game.phase === 'playing' ? game.ringStates[game.current]!.hints.area : undefined;
-  const hintAreaKey = hintArea ? `${hintArea.lat},${hintArea.lon}` : null;
+    if (countriesFocus) void globe.current?.flyTo(countriesFocus.lat, countriesFocus.lon, undefined, HINT_PAN_MS);
+  }, [countriesKey]);
+  const areasFocus = ringHints?.areas ? sphereCentre(ringHints.areas.map((a) => a.circle)) : null;
+  const areasKey = areasFocus ? `${game!.current}:a:${ringHints!.areas!.length}` : null;
   useEffect(() => {
-    if (hintArea) void globe.current?.flyTo(hintArea.lat, hintArea.lon, undefined, HINT_PAN_MS);
-  }, [hintAreaKey]);
+    if (areasFocus) void globe.current?.flyTo(areasFocus.lat, areasFocus.lon, undefined, HINT_PAN_MS);
+  }, [areasKey]);
 
   // Each game's summary opens when it finishes.
   useEffect(() => setSummaryOpen(true), [gameKey]);
@@ -281,7 +281,7 @@ function Game({ controls }: { controls: GlobeControls }) {
       )}
       {dialog === 'about' && <AboutDialog onClose={back} />}
       {dialog === 'history' && <HistoryDialog onClose={back} onReplay={close} />}
-      {dialog === 'settings' && <SettingsDialog onClose={back} inGame={game !== null} />}
+      {dialog === 'settings' && <SettingsDialog onClose={back} />}
     </>
   );
 }

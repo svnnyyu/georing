@@ -71,6 +71,8 @@ function newSeed(): number {
 export interface GameContextValue {
   data: GameData;
   index: MatchIndex;
+  /** Country names and aliases (Countries mode). */
+  countryIndex: MatchIndex;
   /** Settings chosen on the setup screen (remembered between games). */
   settings: Settings;
   setSettings: (s: Settings) => void;
@@ -94,7 +96,17 @@ export interface GameContextValue {
 
 const GameContext = createContext<GameContextValue | null>(null);
 
-export function GameProvider({ data, index, children }: { data: GameData; index: MatchIndex; children: ReactNode }) {
+export function GameProvider({
+  data,
+  index,
+  countryIndex,
+  children,
+}: {
+  data: GameData;
+  index: MatchIndex;
+  countryIndex: MatchIndex;
+  children: ReactNode;
+}) {
   const reducer = useMemo(() => makeReducer(data), [data]);
   const [state, dispatch] = useReducer(reducer, { game: null, outcome: null });
   const [settings, setSettings] = useState<Settings>(() => loadSettings(browserStorage()));
@@ -140,6 +152,7 @@ export function GameProvider({ data, index, children }: { data: GameData; index:
     () => ({
       data,
       index,
+      countryIndex,
       settings,
       setSettings: changeSettings,
       game: state.game,
@@ -154,7 +167,7 @@ export function GameProvider({ data, index, children }: { data: GameData; index:
       skip: () => dispatch({ type: 'skip' }),
       quit: () => dispatch({ type: 'quit' }),
     }),
-    [data, index, settings, changeSettings, state, start, history, replay, clearHistory],
+    [data, index, countryIndex, settings, changeSettings, state, start, history, replay, clearHistory],
   );
 
   return <GameContext.Provider value={value}>{children}</GameContext.Provider>;

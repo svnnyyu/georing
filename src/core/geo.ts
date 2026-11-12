@@ -50,3 +50,19 @@ export function distanceOutsideKm(d: number, innerKm: number, outerKm: number): 
   if (d <= innerKm) return innerKm - d;
   return 0;
 }
+
+/** The centre of some points (weighted, if weights are given), averaged as directions on the
+ *  sphere so it works across the date line; null if there are none. */
+export function sphereCentre(points: readonly LatLon[], weights?: readonly number[]): LatLon | null {
+  let x = 0;
+  let y = 0;
+  let z = 0;
+  points.forEach((p, i) => {
+    const w = weights?.[i] ?? 1;
+    x += w * Math.cos(p.lat * RAD) * Math.cos(p.lon * RAD);
+    y += w * Math.cos(p.lat * RAD) * Math.sin(p.lon * RAD);
+    z += w * Math.sin(p.lat * RAD);
+  });
+  if (x === 0 && y === 0 && z === 0) return null;
+  return { lat: Math.atan2(z, Math.hypot(x, y)) / RAD, lon: Math.atan2(y, x) / RAD };
+}

@@ -11,7 +11,7 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
-    "data": "python3 pipeline/build_cities.py && python3 pipeline/build_geo.py && python3 pipeline/build_land.py"
+    "data": "python3 pipeline/build_cities.py && python3 pipeline/build_geo.py && python3 pipeline/build_land.py && pipeline/.venv/bin/python pipeline/build_population.py"
   },
   "dependencies": {
     "d3-geo": "^3.1.2",

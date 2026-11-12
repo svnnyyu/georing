@@ -26,15 +26,30 @@ export interface GlobeMarker {
   label: string;
   /** Markers from earlier rings are drawn faded. */
   faded?: boolean;
+  /** Just the name, centred, in the marker's colour (Countries mode: a country's name over
+   *  where its people in the ring live). */
+  labelOnly?: boolean;
+}
+
+/** A ring band (around lat, lon) that a country tint is clipped to. */
+export interface RingClip {
+  lat: number;
+  lon: number;
+  innerKm: number;
+  outerKm: number;
 }
 
 export interface GlobeOverlay {
   rings: GlobeRing[];
   markers: GlobeMarker[];
-  /** Country hint: ISO code of the country to outline and tint. */
-  hintCountry?: string;
-  /** Area hint: a dashed circle that contains the answer. */
-  hintArea?: { lat: number; lon: number; radiusKm: number };
+  /** Country hint: the countries to outline and tint, only inside the ring when clip is set
+   *  (Countries mode). */
+  hintCountries?: { ccs: string[]; clip?: RingClip };
+  /** Countries mode: guessed and revealed countries, tinted in their result's colour inside
+   *  the ring they were guessed in. */
+  countryFills?: { cc: string; kind: MarkerKind; faded: boolean; clip?: RingClip }[];
+  /** Area hint: dashed circles, one around each target not found yet. */
+  hintAreas?: { lat: number; lon: number; radiusKm: number }[];
 }
 
 export interface ProjectedMarker {
@@ -45,6 +60,9 @@ export interface ProjectedMarker {
 
 const circle = (lon: number, lat: number, km: number) =>
   geoCircle().center([lon, lat]).radius(kmToDegrees(km)).precision(1)();
+
+/** The circle of radius km around a ring clip's centre (for clipping tints to a ring band). */
+export const ringCircle = (clip: RingClip, km: number) => circle(clip.lon, clip.lat, km);
 
 /** Draw order: start first, then faded, then current wrong/outside, then answers on top. */
 const ORDER: Record<MarkerKind, number> = { start: 0, hint: 1, outside: 2, wrong: 2, correct: 3 };
@@ -80,11 +98,10 @@ export function drawOverlay(
     ctx.globalAlpha = 1;
   }
 
-  // Area hint: dashed circle above the rings.
-  if (overlay.hintArea) {
-    const a = overlay.hintArea;
+  // Area hint: dashed circles above the rings, one per target not found yet.
+  if (overlay.hintAreas?.length) {
     ctx.beginPath();
-    path(circle(a.lon, a.lat, a.radiusKm));
+    for (const a of overlay.hintAreas) path(circle(a.lon, a.lat, a.radiusKm));
     ctx.setLineDash(theme.hintDash);
     ctx.globalAlpha = areaAlpha;
     ctx.strokeStyle = theme.hint;
@@ -128,7 +145,7 @@ export function drawOverlay(
     }
 
     // Glow pulse for a newly revealed answer.
-    if (m.kind === 'correct' && t0 !== undefined && now - t0 < MARKER_PULSE_MS) {
+    if (m.kind === 'correct' && !m.labelOnly && t0 !== undefined && now - t0 < MARKER_PULSE_MS) {
       const p01 = (now - t0) / MARKER_PULSE_MS;
       ctx.save();
       ctx.globalAlpha = (1 - p01) * 0.6;
@@ -138,6 +155,19 @@ export function drawOverlay(
       ctx.fill();
       ctx.restore();
       animating = true;
+    }
+
+    if (m.labelOnly) {
+      // Countries mode: just the name, centred, in the result's colour, with a dark halo.
+      ctx.textAlign = 'center';
+      ctx.lineWidth = 3;
+      ctx.strokeStyle = theme.markerOutline;
+      ctx.strokeText(m.label, x, y);
+      ctx.fillStyle = color;
+      ctx.fillText(m.label, x, y);
+      ctx.textAlign = 'start';
+      ctx.globalAlpha = 1;
+      continue;
     }
 
     ctx.fillStyle = color;

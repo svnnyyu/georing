@@ -46,10 +46,9 @@ export function MenuDialog({
   );
 }
 
-export function SettingsDialog({ onClose, inGame }: { onClose: () => void; inGame: boolean }) {
+export function SettingsDialog({ onClose }: { onClose: () => void }) {
   return (
     <Modal kicker="GeoRing" title="Settings" onClose={onClose}>
-      {inGame && <p className="dim small">Changes apply to the next game.</p>}
       <SettingsForm />
       <button type="button" className="btn primary full" onClick={onClose}>
         Done

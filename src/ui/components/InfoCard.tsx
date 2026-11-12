@@ -5,7 +5,7 @@
 import { INFO_CARD } from '../../config.ts';
 import { guessInfo } from '../../core/guessInfo.ts';
 import type { GameState } from '../../core/types.ts';
-import { formatKm, placeOf } from '../format.ts';
+import { formatKm, formatPop, placeOf } from '../format.ts';
 import { metroOf, PopulationLines } from './Population.tsx';
 import { useGame } from '../state/GameProvider.tsx';
 import type { MarkerRef } from '../state/overlay.ts';
@@ -26,7 +26,10 @@ export function InfoCard({ game, anchor, bounds }: { game: GameState; anchor: Ca
         <span className="name">
           {c.name} <span className="place">{placeOf(data, c.id, { regions })}</span>
         </span>
-        <PopulationLines cityPop={c.pop} metro={metroOf(data, c.id)} measure={game.settings.measure} />
+        {/* Countries mode is about countries, so the start city's own figures aren't needed. */}
+        {game.settings.mode !== 'countries' && (
+          <PopulationLines cityPop={c.pop} metro={metroOf(data, c.id)} measure={game.settings.measure} />
+        )}
       </Card>
     );
   }
@@ -36,7 +39,24 @@ export function InfoCard({ game, anchor, bounds }: { game: GameState; anchor: Ca
       <span className="name">
         {info.name} <span className="place">{placeOf(data, info.unitId, { regions })}</span>
       </span>
-      <PopulationLines cityPop={info.cityPop} metro={info.metro} measure={info.measure} />
+      {info.isCountry ? (
+        // Countries mode: the people inside this ring (what it's ranked by), and the whole
+        // country for scale.
+        <div className="pop-lines">
+          {info.rank && (
+            <span className="pop active">
+              <span>In this ring</span>
+              <span>{formatPop(info.pop)}</span>
+            </span>
+          )}
+          <span className="pop">
+            <span>Whole country</span>
+            <span>{formatPop(info.cityPop)}</span>
+          </span>
+        </div>
+      ) : (
+        <PopulationLines cityPop={info.cityPop} metro={info.metro} measure={info.measure} />
+      )}
       {info.rank && (
         <span>
           #{info.rank.position} of {info.rank.of} in this ring

@@ -11,8 +11,9 @@ import {
   RING_WIDTH_KM,
 } from '../config.ts';
 import { cityOrThrow, unitIdOf, type GameData } from './data.ts';
-import { distanceKm, distanceOutsideKm } from './geo.ts';
-import { areaCircle, countryFocus, countryHint, firstLetter, nextHint } from './hints.ts';
+import { buildCountryRings, countryOutsideKm, pointInRing } from './countries.ts';
+import { distanceKm, distanceOutsideKm, sphereCentre, type LatLon } from './geo.ts';
+import { areaCircle, countryFocus, firstLetter, nextHint } from './hints.ts';
 import { createRng, deriveSeed, pick, weightedIndex } from './random.ts';
 import { buildRings } from './rings.ts';
 import type { GameState, Guess, HintState, Ring, RingState, RingStatus, Settings } from './types.ts';
@@ -33,7 +34,7 @@ export function defaultSettings(): Settings {
     sound: true,
     hints: true,
     measure: 'city',
-    mode: 'population',
+    mode: 'cities',
   };
 }
 
@@ -64,7 +65,8 @@ export function sanitizeSettings(input: Partial<Settings> | null | undefined): S
     sound: typeof s.sound === 'boolean' ? s.sound : d.sound,
     hints: typeof s.hints === 'boolean' ? s.hints : d.hints,
     measure: s.measure === 'metro' ? 'metro' : 'city',
-    mode: 'population',
+    // 'population' was the only mode before Countries mode existed: it means cities.
+    mode: s.mode === 'countries' ? 'countries' : 'cities',
   };
 }
 
@@ -106,12 +108,19 @@ export function newGame(data: GameData, settingsIn: Partial<Settings>, seed: num
   if (startCityId === null || !data.byId.has(startCityId)) {
     startCityId = randomStartCity(data, seed);
   }
-  const startId = unitIdOf(data, settings.measure, startCityId);
-  const rings = buildRings(data, startId, {
-    widthKm: settings.ringWidthKm,
-    ringCount: resolveRingCount(settings),
-    measure: settings.measure,
-  });
+  const countries = settings.mode === 'countries';
+  // Countries mode starts from the city itself (its metro doesn't matter there).
+  const startId = countries ? startCityId : unitIdOf(data, settings.measure, startCityId);
+  const start = cityOrThrow(data, startId);
+  const ringCount = resolveRingCount(settings);
+  const rings = countries
+    ? buildCountryRings(data.grid ?? new Map(), start, {
+        widthKm: settings.ringWidthKm,
+        ringCount,
+        // The start city's own country counts too: it is often the answer near home.
+        excludeCc: null,
+      })
+    : buildRings(data, startId, { widthKm: settings.ringWidthKm, ringCount, measure: settings.measure });
   const ringStates = rings.map(emptyRingState);
   return {
     seed,
@@ -159,11 +168,16 @@ export function guessesLeft(state: GameState): number {
   return state.settings.guessesPerRing - missesUsed(currentRingState(state));
 }
 
-/** The biggest target not found yet (what the hints are about), or null. */
-export function nextTarget(state: GameState): number | null {
+/** The targets not found yet in the current ring, biggest first (what the hints are about). */
+export function targetsLeft(state: GameState): number[] {
   const rs = currentRingState(state);
   const found = new Set(rs.guesses.filter((g) => g.result === 'correct').map((g) => g.unitId));
-  return targetsOf(currentRing(state), state.settings).find((t) => !found.has(t)) ?? null;
+  return targetsOf(currentRing(state), state.settings).filter((t) => !found.has(t));
+}
+
+/** The biggest target not found yet, or null. */
+export function nextTarget(state: GameState): number | null {
+  return targetsLeft(state)[0] ?? null;
 }
 
 /** The hints left for the ring, as long as there is a target to give them about. */
@@ -195,16 +209,23 @@ export function submitGuess(
   state: GameState,
   cityId: number,
 ): { state: GameState; outcome: GuessOutcome } {
-  const unitId = unitIdOf(data, state.settings.measure, cityId);
+  const countries = state.settings.mode === 'countries';
+  // Countries mode: guesses are country units already.
+  const unitId = countries ? cityId : unitIdOf(data, state.settings.measure, cityId);
   if (state.phase !== 'playing') return { state, outcome: { kind: 'ignored', unitId } };
-  if (unitId === state.startId) return { state, outcome: { kind: 'start', unitId } };
+  const start = cityOrThrow(data, state.startId);
+  // The start city is never an answer (in Countries mode its country can be).
+  if (!countries && unitId === state.startId) return { state, outcome: { kind: 'start', unitId } };
   const ring = currentRing(state);
   const rs = currentRingState(state);
   if (rs.guesses.some((g) => g.unitId === unitId)) return { state, outcome: { kind: 'repeat', unitId } };
 
   if (!ring.unitIds.includes(unitId)) {
-    const d = distanceKm(cityOrThrow(data, state.startId), cityOrThrow(data, unitId));
-    const outsideKm = Math.round(distanceOutsideKm(d, ring.innerKm, ring.outerKm));
+    const outsideKm = Math.round(
+      countries
+        ? (countryOutsideKm(data.grid ?? new Map(), cityOrThrow(data, unitId).cc, start, ring) ?? 0)
+        : distanceOutsideKm(distanceKm(start, cityOrThrow(data, unitId)), ring.innerKm, ring.outerKm),
+    );
     const guesses: Guess[] = [...rs.guesses, { unitId, result: 'outside' }];
     return { state: withRing(state, { ...rs, guesses }), outcome: { kind: 'outside', unitId, outsideKm } };
   }
@@ -217,48 +238,62 @@ export function submitGuess(
   let status: RingStatus = 'playing';
   if (found >= targets.length) status = 'solved';
   else if (misses >= state.settings.guessesPerRing) status = 'missed';
-  // Finding the city the shown hints are about clears them; the next hint starts over for
-  // the next target.
-  const hints: HintState = correct && rs.hints.for === unitId ? { used: rs.hints.used } : rs.hints;
-  const next = withRing(state, { ...rs, guesses, hints, status }, status === 'playing' ? 'playing' : 'ringOver');
+  const next = withRing(state, { ...rs, guesses, status }, status === 'playing' ? 'playing' : 'ringOver');
   const outcome: GuessOutcome = correct
     ? { kind: 'correct', unitId, rank: ring.unitIds.indexOf(unitId) + 1 }
     : { kind: 'wrong', unitId };
   return { state: next, outcome };
 }
 
-/** Unlocks the next hint for the current ring, about the biggest target not found yet:
- *  country, then area circle, then its dot and first letter. HINTS_PER_RING in all per ring. */
+/** Unlocks the next hint for the current ring (HINTS_PER_RING in all, in a fixed order).
+ *  Each covers every target not found yet: 1. countries (the targets' countries; in Countries
+ *  mode every country in the ring), 2. a circle around each, 3. each one's dot and first
+ *  letter. */
 export function useHint(data: GameData, state: GameState): GameState {
   if (state.phase !== 'playing' || !state.settings.hints || hintsLeft(state) <= 0) return state;
   const ring = currentRing(state);
   const rs = currentRingState(state);
-  const target = nextTarget(state);
-  if (target === null) return state;
-  // Hints shown for an earlier target (now found) don't carry over.
-  const same = rs.hints.for === target;
-  const shown = same ? (rs.hints.shown ?? rs.hints.used) : [];
-  const kind = nextHint(shown);
-  if (kind === null) return state;
-  const hints: HintState = {
-    ...(same ? rs.hints : {}),
-    used: [...rs.hints.used, kind],
-    for: target,
-    shown: [...shown, kind],
-  };
+  const left = targetsLeft(state);
+  const kind = nextHint(rs.hints.used);
+  if (kind === null || left.length === 0) return state;
+  const countries = state.settings.mode === 'countries';
+  const start = cityOrThrow(data, state.startId);
+  // Where a target is: the city, or where the country's people in the ring live.
+  const at = (unitId: number): LatLon => (countries && pointInRing(ring, unitId)) || cityOrThrow(data, unitId);
+  const hints: HintState = { ...rs.hints, used: [...rs.hints.used, kind] };
   if (kind === 'country') {
-    const country = countryHint(data, target);
-    const focus = countryFocus(data, ring, country.cc);
-    hints.country = focus ? { ...country, focus } : country;
+    if (countries) {
+      // Every country with people in the ring, tinted inside it (naming the answer's own
+      // country would give it away).
+      const ccs = ring.unitIds.map((id) => cityOrThrow(data, id).cc);
+      hints.countries = { ccs, inRing: true, ...centreOf(ring.points ?? [], ring.pops) };
+    } else {
+      const ccs = [...new Set(left.map((id) => cityOrThrow(data, id).cc))];
+      const points = ccs.map((cc) => countryFocus(data, ring, cc)).filter((p): p is LatLon => p !== null);
+      hints.countries = { ccs, inRing: false, ...centreOf(points) };
+    }
   }
   if (kind === 'area') {
-    // One random stream per ring and target (the first target keeps the original stream).
-    const rank = ring.unitIds.indexOf(target);
-    const rng = createRng(rank === 0 ? deriveSeed(state.seed, SALT_HINT, ring.index) : deriveSeed(state.seed, SALT_HINT, ring.index, rank));
-    hints.area = areaCircle(data, ring, target, cityOrThrow(data, state.startId), rng);
+    hints.areas = left.map((unitId) => {
+      // One random stream per ring and target (the biggest keeps the original stream).
+      const rank = ring.unitIds.indexOf(unitId);
+      const seed = rank === 0 ? deriveSeed(state.seed, SALT_HINT, ring.index) : deriveSeed(state.seed, SALT_HINT, ring.index, rank);
+      return { unitId, circle: areaCircle(data, ring, at(unitId), start, createRng(seed)) };
+    });
   }
-  if (kind === 'letter') hints.letter = firstLetter(cityOrThrow(data, target).name);
+  if (kind === 'letter') {
+    hints.letters = left.map((unitId) => {
+      const p = at(unitId);
+      return { unitId, letter: firstLetter(cityOrThrow(data, unitId).name), at: { lat: p.lat, lon: p.lon } };
+    });
+  }
   return withRing(state, { ...rs, hints });
+}
+
+/** Where the camera glides for a hint: the centre of some points, or nothing. */
+function centreOf(points: LatLon[], weights?: number[]): { focus?: LatLon } {
+  const c = sphereCentre(points, weights);
+  return c ? { focus: c } : {};
 }
 
 /** Give up on the current ring: it ends as missed (marked skipped) and the answer is

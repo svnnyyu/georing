@@ -3,11 +3,13 @@
 
 import { buildGameData, type GameData } from '../core/data.ts';
 import { buildMatchIndex, type MatchIndex } from '../core/matching.ts';
-import type { City, Country, LandMask, Metro } from '../core/types.ts';
+import type { City, Country, LandMask, Metro, PopulationFile } from '../core/types.ts';
 
 export interface LoadedData {
   data: GameData;
   index: MatchIndex;
+  /** Country names and aliases, for Countries mode. */
+  countryIndex: MatchIndex;
 }
 
 async function getJson<T>(path: string): Promise<T> {
@@ -32,12 +34,13 @@ function decodeLand(f: LandFile): LandMask {
 }
 
 export async function loadData(): Promise<LoadedData> {
-  const [cities, metros, countries, land] = await Promise.all([
+  const [cities, metros, countries, land, population] = await Promise.all([
     getJson<City[]>('cities.json'),
     getJson<Metro[]>('metros.json'),
     getJson<Record<string, Country>>('countries.json'),
     getJson<LandFile>('land.json'),
+    getJson<PopulationFile>('population.json'),
   ]);
-  const data = buildGameData({ cities, metros, countries, land: decodeLand(land) });
-  return { data, index: buildMatchIndex(cities) };
+  const data = buildGameData({ cities, metros, countries, land: decodeLand(land), population });
+  return { data, index: buildMatchIndex(cities), countryIndex: buildMatchIndex(data.countryUnits) };
 }

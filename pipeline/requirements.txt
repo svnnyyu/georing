@@ -1,0 +1,6 @@
+# Python libraries for the data pipeline (only build_population.py needs them; the other
+# scripts use the standard library). Install into a virtual environment, see docs/SPEC.md:
+#   python3 -m venv pipeline/.venv
+#   pipeline/.venv/bin/pip install -r pipeline/requirements.txt
+numpy>=1.26
+rasterio>=1.3

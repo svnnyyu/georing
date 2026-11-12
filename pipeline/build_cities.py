@@ -415,9 +415,10 @@ def main() -> None:
         r.pop("metroMain", None)
     metros.sort(key=lambda m: -m["pop"])
 
-    used_ccs = {r["cc"] for r in records}
+    # Every country, not only those with a city in the list: Countries mode can ask about
+    # any country with people in a ring.
     country_records = {}
-    for cc in sorted(used_ccs):
+    for cc in sorted(set(countries) | {r["cc"] for r in records}):
         info = countries.get(cc)
         if not info:
             print(f"  warning: no countryInfo for {cc}")

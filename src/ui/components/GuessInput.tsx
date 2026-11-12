@@ -15,9 +15,12 @@ import { placeOf } from '../format.ts';
 import { useGame } from '../state/GameProvider.tsx';
 
 export function GuessInput({ inRing, onGuess }: { inRing: Set<number>; onGuess: (cityId: number) => void }) {
-  const { data, index, game, settings } = useGame();
+  const { data, index: cityIndex, countryIndex, game, settings } = useGame();
   const regions = settings.subdivisions;
-  const measure = game?.settings.measure ?? 'city';
+  // Countries mode matches country names (and guesses countries, never metros).
+  const countries = game?.settings.mode === 'countries';
+  const index = countries ? countryIndex : cityIndex;
+  const measure = countries ? 'city' : (game?.settings.measure ?? 'city');
   const dropdown = game?.settings.suggestions ?? false;
   const [text, setText] = useState('');
   /** The city the box currently names (after picking or autocorrecting). */
@@ -74,7 +77,7 @@ export function GuessInput({ inRing, onGuess }: { inRing: Set<number>; onGuess: 
     const action = enterGuess(index, data, text, ctx);
     switch (action.kind) {
       case 'notFound':
-        setNote('City not found');
+        setNote(countries ? 'Country not found' : 'City not found');
         break;
       case 'correct':
         choose(action.unitId);
@@ -103,7 +106,7 @@ export function GuessInput({ inRing, onGuess }: { inRing: Set<number>; onGuess: 
             <input
               ref={inputRef}
               className="input"
-              placeholder="Type a city"
+              placeholder={countries ? 'Type a country' : 'Type a city'}
               value={text}
               autoFocus
               autoComplete="off"

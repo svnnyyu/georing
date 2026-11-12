@@ -7,7 +7,7 @@ import {
 } from '../../src/config.ts';
 import { buildGameData, cityOrThrow, unitIdOf } from '../../src/core/data.ts';
 import { destination, distanceKm } from '../../src/core/geo.ts';
-import { areaCircle, circleShares, countryFocus, countryHint, firstLetter, nextHint } from '../../src/core/hints.ts';
+import { areaCircle, circleShares, countryFocus, firstLetter, nextHint } from '../../src/core/hints.ts';
 import { createRng } from '../../src/core/random.ts';
 import { buildRings } from '../../src/core/rings.ts';
 import type { City } from '../../src/core/types.ts';
@@ -28,10 +28,6 @@ describe('hint order and simple hints', () => {
     expect(firstLetter('ürümqi')).toBe('Ü');
   });
 
-  it("names the answer's country", () => {
-    const { data } = synthetic();
-    expect(countryHint(data, 9)).toEqual({ cc: 'YY', name: 'Whyland' });
-  });
 });
 
 /** Checks the area circle contract for many random seeds. */
@@ -45,7 +41,7 @@ function checkCircles(
   const radius = HINT_AREA_RADIUS_FRACTION * (ring.outerKm - ring.innerKm);
   let maxOffset = 0;
   for (let seed = 0; seed < 100; seed++) {
-    const c = areaCircle(data, ring, ring.answerId!, start, createRng(seed));
+    const c = areaCircle(data, ring, answer, start, createRng(seed));
     expect(c.radiusKm).toBeCloseTo(radius, 6); // diameter = 2 × the fraction of the ring width
     const d = distanceKm(c, answer);
     expect(d).toBeLessThanOrEqual(c.radiusKm * HINT_AREA_MAX_OFFSET_FRACTION + 1e-6); // answer inside
@@ -74,7 +70,7 @@ describe('area circle', () => {
         if (ring.answerId === null) continue;
         let ok = 0;
         for (let seed = 0; seed < 20; seed++) {
-          const c = areaCircle(data, ring, ring.answerId, start, createRng(seed));
+          const c = areaCircle(data, ring, cityOrThrow(data, ring.answerId), start, createRng(seed));
           const s = circleShares(data, c, ring, start);
           if (s.inRing >= HINT_AREA_MIN_IN_RING && s.land >= HINT_AREA_MIN_LAND) ok++;
         }
@@ -95,8 +91,9 @@ describe('area circle', () => {
     const startId = idOf(data, 'Tokyo');
     const start = cityOrThrow(data, startId);
     const ring = buildRings(data, startId, { widthKm: 500, ringCount: 1, measure: 'city' })[0]!;
-    expect(areaCircle(data, ring, ring.answerId!, start, createRng(9))).toEqual(
-      areaCircle(data, ring, ring.answerId!, start, createRng(9)),
+    const answer = cityOrThrow(data, ring.answerId!);
+    expect(areaCircle(data, ring, answer, start, createRng(9))).toEqual(
+      areaCircle(data, ring, answer, start, createRng(9)),
     );
   });
 

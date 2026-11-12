@@ -29,7 +29,7 @@ import {
 import type { Detail, WorldLayers } from '../../data/loadGeo.ts';
 import { prepareLines, prepareWorld, visible, type Item, type PreparedWorld } from './layers.ts';
 import { fadeAlpha, updateFading, type Fading } from './fade.ts';
-import { drawOverlay, hitTest, type GlobeOverlay, type ProjectedMarker } from './overlay.ts';
+import { drawOverlay, ringCircle, type RingClip, hitTest, type GlobeOverlay, type ProjectedMarker } from './overlay.ts';
 import { flyPath, scaleExtent, scaleForRadius, wholeEarthScale, type View, type Viewport } from './camera.ts';
 import { Sky } from './sky.ts';
 import { readGlobeTheme, type GlobeTheme } from './theme.ts';
@@ -96,8 +96,8 @@ export class Globe {
   private readonly born = new Map<string, number>();
   /** The country and area hints, with when they appeared or started to leave (they fade in
    *  when shown and fade out when the next ring clears them). */
-  private hintCountry: Fading<string> | null = null;
-  private hintArea: Fading<NonNullable<GlobeOverlay['hintArea']>> | null = null;
+  private hintCountry: Fading<NonNullable<GlobeOverlay['hintCountries']>> | null = null;
+  private hintArea: Fading<NonNullable<GlobeOverlay['hintAreas']>> | null = null;
   /** How far the globe's centre sits below the screen's centre, as a share of the screen
    *  height (the start screen's "horizon"), animated between lowered and raised. */
   private lowered = true;
@@ -170,8 +170,14 @@ export class Globe {
       if ((m.kind === 'correct' || m.kind === 'hint') && !this.born.has(m.id)) this.born.set(m.id, now);
     }
     for (const id of this.born.keys()) if (!ids.has(id)) this.born.delete(id);
-    this.hintCountry = updateFading(this.hintCountry, overlay.hintCountry, (cc) => cc, now);
-    this.hintArea = updateFading(this.hintArea, overlay.hintArea, (a) => `${a.lat},${a.lon},${a.radiusKm}`, now);
+    this.hintCountry = updateFading(this.hintCountry, overlay.hintCountries, (h) => h.ccs.join(','), now);
+    // Circles go one by one as their targets are found: the rest stay as they are rather
+    // than fading in again.
+    const areas = overlay.hintAreas;
+    this.hintArea =
+      areas && this.hintArea && !this.hintArea.leaving
+        ? { ...this.hintArea, value: areas }
+        : updateFading(this.hintArea, areas, (list) => list.map((a) => `${a.lat},${a.lon}`).join(';'), now);
     this.overlay = overlay;
     this.requestDraw();
   }
@@ -581,24 +587,61 @@ export class Globe {
         ctx.globalAlpha = 1;
       }
     }
-    // 5. Country hint: the answer's country outlined and tinted (under the rings)
+    // Draws inside a ring band only (Countries mode tints), or everywhere without a clip.
+    const clipped = (clip: RingClip | undefined, draw: () => void) => {
+      if (!clip) return draw();
+      ctx.save();
+      this.projection.precision(RESAMPLE_PRECISION_PX); // smooth circles
+      ctx.beginPath();
+      path(ringCircle(clip, clip.outerKm));
+      if (clip.innerKm > 0) path(ringCircle(clip, clip.innerKm));
+      ctx.clip('evenodd');
+      this.projection.precision(0);
+      draw();
+      ctx.restore();
+    };
+    // 4c. Countries mode: guessed and revealed countries, tinted in their result's colour
+    // inside the ring they were guessed in
+    if (world) {
+      for (const f of this.overlay.countryFills ?? []) {
+        const shapes = world.countries.get(f.cc);
+        if (!shapes) continue;
+        const color = f.kind === 'correct' ? theme.correct : f.kind === 'wrong' ? theme.wrong : theme.outside;
+        clipped(f.clip, () => {
+        ctx.beginPath();
+        for (const it of visible(shapes, this.view.center, cap)) path(it.geo);
+        ctx.globalAlpha = f.faded ? theme.countryFillFadedOpacity : theme.countryFillOpacity;
+        ctx.fillStyle = color;
+        ctx.fill();
+        ctx.globalAlpha = f.faded ? theme.markerFadedOpacity : 1;
+        ctx.strokeStyle = color;
+        ctx.lineWidth = theme.hintWidth;
+        ctx.stroke();
+        ctx.globalAlpha = 1;
+        });
+      }
+    }
+    // 5. Country hint: the answer's country (or continent's countries) outlined and tinted
     let fading = lift !== this.lift.to;
     const countryAlpha = fadeAlpha(this.hintCountry, now);
     if (this.hintCountry && countryAlpha === null) this.hintCountry = null;
-    const hinted = world && this.hintCountry ? world.countries.get(this.hintCountry.value) : undefined;
-    if (hinted && countryAlpha !== null) {
+    const hinted =
+      world && this.hintCountry ? this.hintCountry.value.ccs.flatMap((cc) => world.countries.get(cc) ?? []) : undefined;
+    if (hinted && hinted.length && countryAlpha !== null) {
       const f = countryAlpha;
       fading ||= this.hintCountry!.at + HINT_FADE_MS > now;
-      ctx.beginPath();
-      for (const it of visible(hinted, this.view.center, cap)) path(it.geo);
-      ctx.globalAlpha = theme.hintFillOpacity * f;
-      ctx.fillStyle = theme.hint;
-      ctx.fill();
-      ctx.globalAlpha = f;
-      ctx.strokeStyle = theme.hint;
-      ctx.lineWidth = theme.hintWidth;
-      ctx.stroke();
-      ctx.globalAlpha = 1;
+      clipped(this.hintCountry!.value.clip, () => {
+        ctx.beginPath();
+        for (const it of visible(hinted, this.view.center, cap)) path(it.geo);
+        ctx.globalAlpha = theme.hintFillOpacity * f;
+        ctx.fillStyle = theme.hint;
+        ctx.fill();
+        ctx.globalAlpha = f;
+        ctx.strokeStyle = theme.hint;
+        ctx.lineWidth = theme.hintWidth;
+        ctx.stroke();
+        ctx.globalAlpha = 1;
+      });
     }
     const areaAlpha = fadeAlpha(this.hintArea, now) ?? 0;
     if (this.hintArea && areaAlpha === 0 && this.hintArea.leaving) this.hintArea = null;
@@ -613,7 +656,7 @@ export class Globe {
       path,
       this.projection,
       theme,
-      { ...this.overlay, hintArea: this.hintArea?.value },
+      { ...this.overlay, hintAreas: this.hintArea?.value },
       { center: this.view.center, cap },
       this.born,
       now,

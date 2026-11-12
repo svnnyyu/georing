@@ -36,7 +36,7 @@ describe('settings', () => {
       sound: true,
       hints: true,
       measure: 'city',
-      mode: 'population',
+      mode: 'cities',
     });
   });
 
@@ -200,15 +200,14 @@ describe('rings, hints and the end of the game', () => {
     s = useHint(data, s);
     expect(currentRingState(s).hints).toEqual({
       used: ['country'],
-      for: 2,
-      shown: ['country'],
-      country: { cc: 'XX', name: 'Exland', focus: expect.objectContaining({ lat: expect.any(Number) }) },
+      countries: { ccs: ['XX'], inRing: false, focus: expect.objectContaining({ lat: expect.any(Number) }) },
     });
     s = useHint(data, s);
-    const area = currentRingState(s).hints.area!;
-    expect(distanceKm(area, data.byId.get(currentRing(s).answerId!)!)).toBeLessThan(area.radiusKm);
+    const areas = currentRingState(s).hints.areas!;
+    expect(areas).toHaveLength(1);
+    expect(distanceKm(areas[0]!.circle, data.byId.get(currentRing(s).answerId!)!)).toBeLessThan(areas[0]!.circle.radiusKm);
     s = useHint(data, s);
-    expect(currentRingState(s).hints.letter).toBe('S');
+    expect(currentRingState(s).hints.letters).toEqual([{ unitId: 2, letter: 'S', at: expect.any(Object) }]);
     expect(useHint(data, s)).toBe(s);
   });
 
@@ -219,7 +218,7 @@ describe('rings, hints and the end of the game', () => {
 
   it('gives the same hint circle when a game is replayed', () => {
     const play = () => useHint(data, useHint(data, newGame(data, { startCityId: 1 }, 99, NOW)));
-    expect(currentRingState(play()).hints.area).toEqual(currentRingState(play()).hints.area);
+    expect(currentRingState(play()).hints.areas).toEqual(currentRingState(play()).hints.areas);
   });
 });
 
@@ -262,17 +261,19 @@ describe('finding several cities per ring', () => {
     expect(targetsOf(s.rings[2]!, s.settings)).toHaveLength(2); // ring 3 holds 2 cities
   });
 
-  it('points hints at the biggest target not found, starting over when it is found', () => {
-    let s = start(2);
+  it('gives each hint for every target not found yet', () => {
+    let s = start(3);
+    s = submitGuess(data, s, 3).state; // Alpha found: Suburb (2) and Bravo (4) left
+    expect(nextTarget(s)).toBe(2);
     s = useHint(data, s);
-    expect(currentRingState(s).hints).toMatchObject({ for: 2, shown: ['country'] });
-    s = submitGuess(data, s, 2).state; // found the hinted city: its hints clear
-    expect(currentRingState(s).hints).toEqual({ used: ['country'] });
-    expect(nextTarget(s)).toBe(3);
+    expect(currentRingState(s).hints.countries?.ccs).toEqual(['XX']); // both are in Exland
     s = useHint(data, s);
-    expect(currentRingState(s).hints).toMatchObject({ used: ['country', 'country'], for: 3, shown: ['country'] });
+    expect(currentRingState(s).hints.areas!.map((a) => a.unitId)).toEqual([2, 4]);
     s = useHint(data, s);
-    expect(currentRingState(s).hints.shown).toEqual(['country', 'area']);
+    expect(currentRingState(s).hints.letters!.map((l) => l.letter)).toEqual(['S', 'B']);
     expect(useHint(data, s)).toBe(s); // 3 hints per ring in all
+    // Finding a target keeps the hints (the globe drops that target's circle and letter).
+    s = submitGuess(data, s, 2).state;
+    expect(currentRingState(s).hints.areas).toHaveLength(2);
   });
 });
