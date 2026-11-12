@@ -45,12 +45,12 @@ export function InfoCard({ game, anchor, bounds }: { game: GameState; anchor: Ca
         <div className="pop-lines">
           {info.rank && (
             <span className="pop active">
-              <span>In this ring</span>
+              <span>Ring</span>
               <span>{formatPop(info.pop)}</span>
             </span>
           )}
           <span className="pop">
-            <span>Whole country</span>
+            <span>Total</span>
             <span>{formatPop(info.cityPop)}</span>
           </span>
         </div>
