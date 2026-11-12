@@ -2,7 +2,7 @@
 // Globe -> Layers 6-8 and Markers). Called from Globe.draw() with resampling on.
 
 import { geoCircle, geoDistance, type GeoPath, type GeoProjection } from 'd3-geo';
-import { MARKER_PULSE_MS } from '../../config.ts';
+import { HINT_FADE_MS, MARKER_PULSE_MS } from '../../config.ts';
 import { kmToDegrees } from '../../core/geo.ts';
 import type { GlobeTheme } from './theme.ts';
 
@@ -15,7 +15,8 @@ export interface GlobeRing {
   current: boolean;
 }
 
-export type MarkerKind = 'start' | 'outside' | 'wrong' | 'correct';
+/** hint: the answer's dot shown by the letter hint (labelled with the first letter only). */
+export type MarkerKind = 'start' | 'outside' | 'wrong' | 'correct' | 'hint';
 
 export interface GlobeMarker {
   id: string;
@@ -30,6 +31,10 @@ export interface GlobeMarker {
 export interface GlobeOverlay {
   rings: GlobeRing[];
   markers: GlobeMarker[];
+  /** Country hint: ISO code of the country to outline and tint. */
+  hintCountry?: string;
+  /** Area hint: a dashed circle that contains the answer. */
+  hintArea?: { lat: number; lon: number; radiusKm: number };
 }
 
 export interface ProjectedMarker {
@@ -42,7 +47,7 @@ const circle = (lon: number, lat: number, km: number) =>
   geoCircle().center([lon, lat]).radius(kmToDegrees(km)).precision(1)();
 
 /** Draw order: start first, then faded, then current wrong/outside, then answers on top. */
-const ORDER: Record<MarkerKind, number> = { start: 0, outside: 2, wrong: 2, correct: 3 };
+const ORDER: Record<MarkerKind, number> = { start: 0, hint: 1, outside: 2, wrong: 2, correct: 3 };
 
 export function drawOverlay(
   ctx: CanvasRenderingContext2D,
@@ -53,6 +58,8 @@ export function drawOverlay(
   view: { center: [number, number]; cap: number },
   born: Map<string, number>,
   now: number,
+  /** Opacity of the area hint (it fades in). */
+  areaAlpha = 1,
 ): { projected: ProjectedMarker[]; animating: boolean } {
   // Rings: earlier ones as faint outlines, the current one as a filled donut.
   for (const r of overlay.rings) {
@@ -73,6 +80,20 @@ export function drawOverlay(
     ctx.globalAlpha = 1;
   }
 
+  // Area hint: dashed circle above the rings.
+  if (overlay.hintArea) {
+    const a = overlay.hintArea;
+    ctx.beginPath();
+    path(circle(a.lon, a.lat, a.radiusKm));
+    ctx.setLineDash(theme.hintDash);
+    ctx.globalAlpha = areaAlpha;
+    ctx.strokeStyle = theme.hint;
+    ctx.lineWidth = theme.hintWidth;
+    ctx.stroke();
+    ctx.globalAlpha = 1;
+    ctx.setLineDash([]);
+  }
+
   // Markers on the visible side of the globe only.
   const projected: ProjectedMarker[] = [];
   let animating = false;
@@ -87,13 +108,26 @@ export function drawOverlay(
     const p = projection([m.lon, m.lat]);
     if (!p) continue;
     const [x, y] = p;
-    projected.push({ id: m.id, x, y });
+    if (m.kind !== 'hint') projected.push({ id: m.id, x, y }); // the hint dot has no info card
     const color =
-      m.kind === 'start' ? theme.accent : m.kind === 'correct' ? theme.correct : m.kind === 'wrong' ? theme.wrong : theme.outside;
+      m.kind === 'start'
+        ? theme.accent
+        : m.kind === 'correct'
+          ? theme.correct
+          : m.kind === 'wrong'
+            ? theme.wrong
+            : m.kind === 'hint'
+              ? theme.hint
+              : theme.outside;
     ctx.globalAlpha = m.faded ? theme.markerFadedOpacity : 1;
+    // The hint dot fades in.
+    const t0 = born.get(m.id);
+    if (m.kind === 'hint' && t0 !== undefined && now - t0 < HINT_FADE_MS) {
+      ctx.globalAlpha = (now - t0) / HINT_FADE_MS;
+      animating = true;
+    }
 
     // Glow pulse for a newly revealed answer.
-    const t0 = born.get(m.id);
     if (m.kind === 'correct' && t0 !== undefined && now - t0 < MARKER_PULSE_MS) {
       const p01 = (now - t0) / MARKER_PULSE_MS;
       ctx.save();
@@ -132,7 +166,7 @@ export function drawOverlay(
       ctx.lineWidth = 3;
       ctx.strokeStyle = theme.markerOutline;
       ctx.strokeText(m.label, tx, y);
-      ctx.fillStyle = theme.text;
+      ctx.fillStyle = m.kind === 'hint' ? theme.hint : theme.text;
       ctx.fillText(m.label, tx, y);
     }
     ctx.globalAlpha = 1;

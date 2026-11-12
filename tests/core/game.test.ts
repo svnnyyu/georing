@@ -28,6 +28,7 @@ describe('settings', () => {
       guessesPerRing: 3,
       suggestions: false,
       subdivisions: false,
+      hints: true,
       measure: 'city',
       mode: 'population',
     });
@@ -174,6 +175,11 @@ describe('rings, hints and the end of the game', () => {
     expect(distanceKm(area, data.byId.get(currentRing(s).answerId!)!)).toBeLessThan(area.radiusKm);
     s = useHint(data, s);
     expect(currentRingState(s).hints.letter).toBe('S');
+    expect(useHint(data, s)).toBe(s);
+  });
+
+  it('gives no hints when they are switched off', () => {
+    const s = newGame(data, { startCityId: 1, ringWidthKm: 500, ringCount: 3, hints: false }, 7, NOW);
     expect(useHint(data, s)).toBe(s);
   });
 

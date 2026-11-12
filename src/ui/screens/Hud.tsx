@@ -2,10 +2,11 @@
 // the guess box and the last guess's outcome. It slides in when a game starts.
 
 import { useEffect, useMemo } from 'react';
-import { EMPTY_RING_ADVANCE_MS } from '../../config.ts';
+import { EMPTY_RING_ADVANCE_MS, HINTS_PER_RING } from '../../config.ts';
 import { guessesLeft, type GuessOutcome } from '../../core/game.ts';
 import type { GameState } from '../../core/types.ts';
 import { GuessInput } from '../components/GuessInput.tsx';
+import { BulbIcon } from '../components/Icons.tsx';
 import { metroOf, PopulationInline } from '../components/Population.tsx';
 import { formatKm, placeOf } from '../format.ts';
 import { useGame } from '../state/GameProvider.tsx';
@@ -28,13 +29,14 @@ function outcomeMessage(outcome: GuessOutcome, name: string): { text: string; to
 }
 
 export function Hud({ game }: { game: GameState }) {
-  const { data, outcome, guess, next, skip, settings } = useGame();
+  const { data, outcome, guess, next, skip, hint, settings } = useGame();
   const ring = game.rings[game.current]!;
   const rs = game.ringStates[game.current]!;
   const inRing = useMemo(() => new Set(ring.unitIds), [ring]);
   const left = guessesLeft(game);
   const start = data.byId.get(game.startId)!;
   const playing = game.phase === 'playing';
+  const hintsLeft = HINTS_PER_RING - rs.hints.used.length;
 
   // An empty ring shows "No cities in this ring" briefly, then moves on by itself.
   useEffect(() => {
@@ -51,7 +53,7 @@ export function Hud({ game }: { game: GameState }) {
       <div className="hud-top">
         <span className="hud-ring">
           Ring {game.current + 1}
-          <span className="dim"> / {game.rings.length}</span>
+          <span className="dim">/{game.rings.length}</span>
         </span>
         <span className="dim small">
           {formatKm(ring.innerKm)}–{formatKm(ring.outerKm)}
@@ -62,17 +64,33 @@ export function Hud({ game }: { game: GameState }) {
             <span key={i} className={i < game.settings.guessesPerRing - left ? 'sq wrong' : 'sq unused'} />
           ))}
         </span>
-        {playing && (
+        <span className="hud-actions">
+          {/* Hint and Skip stay (greyed out) once the ring is over, so the box keeps its
+              shape; only the guess box goes. */}
+          {game.settings.hints && (
+            <button
+              type="button"
+              className="text-btn hint-btn"
+              onClick={hint}
+              disabled={!playing || hintsLeft === 0}
+              aria-label={`Hint, ${hintsLeft} left`}
+              title="Shows the answer's country, then an area around it, then its dot and first letter"
+            >
+              <BulbIcon />
+              {hintsLeft}
+            </button>
+          )}
           <button
             type="button"
-            className="text-btn"
+            className="text-btn skip"
+            disabled={!playing}
             onClick={skip}
             aria-label="Skip this ring"
             title="Give up on this ring and see the answer"
           >
             Skip
           </button>
-        )}
+        </span>
       </div>
       <div className="hud-start small">
         <span>

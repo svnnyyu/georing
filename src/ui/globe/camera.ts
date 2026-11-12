@@ -4,6 +4,7 @@
 import {
   EARTH_RADIUS_KM,
   FLY_DURATION_MS,
+  FLY_PULLBACK_FIT_FRACTION,
   GLOBE_FIT_FRACTION,
   GLOBE_MIN_ZOOM,
   MIN_VIEW_WIDTH_KM,
@@ -80,7 +81,7 @@ export function flyPath(from: View, to: View, v: Viewport): FlyPath {
   const logFrom = Math.log(from.scale);
   const logTo = Math.log(to.scale);
   // Scale at which both ends fit on screen at once (mid-flight).
-  const both = (RING_FIT_FRACTION * shorter(v)) / 2 / Math.max(Math.sin(Math.min(angle / 2, Math.PI / 2)), 1e-9);
+  const both = (FLY_PULLBACK_FIT_FRACTION * shorter(v)) / 2 / Math.max(Math.sin(Math.min(angle / 2, Math.PI / 2)), 1e-9);
   const logBoth = Math.log(Math.max(scaleExtent(v)[0], both));
   const dip = Math.max(0, Math.min(logFrom, logTo) - logBoth);
   const doublings = Math.abs(logTo - logFrom) / Math.LN2 + (2 * dip) / Math.LN2;

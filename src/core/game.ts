@@ -21,6 +21,7 @@ export function defaultSettings(): Settings {
     guessesPerRing: GUESSES_PER_RING.default,
     suggestions: false,
     subdivisions: false,
+    hints: true,
     measure: 'city',
     mode: 'population',
   };
@@ -49,6 +50,7 @@ export function sanitizeSettings(input: Partial<Settings> | null | undefined): S
     guessesPerRing: clampStep(s.guessesPerRing, GUESSES_PER_RING),
     suggestions: typeof s.suggestions === 'boolean' ? s.suggestions : d.suggestions,
     subdivisions: typeof s.subdivisions === 'boolean' ? s.subdivisions : d.subdivisions,
+    hints: typeof s.hints === 'boolean' ? s.hints : d.hints,
     measure: s.measure === 'metro' ? 'metro' : 'city',
     mode: 'population',
   };
@@ -168,7 +170,7 @@ export function submitGuess(
 
 /** Unlocks the next hint for the current ring (country, then area circle, then first letter). */
 export function useHint(data: GameData, state: GameState): GameState {
-  if (state.phase !== 'playing') return state;
+  if (state.phase !== 'playing' || !state.settings.hints) return state;
   const ring = currentRing(state);
   const rs = currentRingState(state);
   const kind = nextHint(rs.hints.used);
@@ -177,7 +179,8 @@ export function useHint(data: GameData, state: GameState): GameState {
   const hints = { ...rs.hints, used };
   if (kind === 'country') hints.country = countryHint(data, ring.answerId);
   if (kind === 'area') {
-    hints.area = areaCircle(data, ring, ring.answerId, createRng(deriveSeed(state.seed, SALT_HINT, ring.index)));
+    const rng = createRng(deriveSeed(state.seed, SALT_HINT, ring.index));
+    hints.area = areaCircle(data, ring, ring.answerId, cityOrThrow(data, state.startId), rng);
   }
   if (kind === 'letter') hints.letter = firstLetter(cityOrThrow(data, ring.answerId).name);
   return withRing(state, { ...rs, hints });

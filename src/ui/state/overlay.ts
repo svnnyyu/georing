@@ -1,4 +1,4 @@
-// Turns the game state into what the globe draws: rings so far and city markers.
+// Turns the game state into what the globe draws: rings so far, city markers and hints.
 
 import { cityOrThrow, type GameData } from '../../core/data.ts';
 import type { GameState } from '../../core/types.ts';
@@ -6,6 +6,8 @@ import type { GlobeMarker, GlobeOverlay, MarkerKind } from '../globe/overlay.ts'
 
 /** Marker ids: "start", "<ring>:<unitId>" for guesses, "<ring>:answer" for a revealed answer. */
 export type MarkerRef = { kind: 'start' } | { kind: 'guess' | 'answer'; ring: number; unitId: number };
+
+const LETTER_HINT_MASK = '****';
 
 export function parseMarkerId(game: GameState, id: string): MarkerRef | null {
   if (id === 'start') return { kind: 'start' };
@@ -44,5 +46,20 @@ export function buildOverlay(data: GameData, game: GameState | null): GlobeOverl
       markers.push({ id: `${i}:answer`, lon: c.lon, lat: c.lat, kind: 'correct', label: c.name, faded });
     }
   });
-  return { rings, markers };
+  // Hints for the ring being played (cleared when the next ring starts).
+  const hints = game.phase === 'finished' ? undefined : game.ringStates[game.current]!.hints;
+  // Letter hint: the answer's dot, labelled with only its first letter ("N****"; always four
+  // stars, so they don't give away the name's length). Gone once the ring is over, when the
+  // answer itself is shown.
+  const answerId = game.rings[game.current]!.answerId;
+  if (hints?.letter && game.phase === 'playing' && answerId !== null) {
+    const c = cityOrThrow(data, answerId);
+    markers.push({ id: 'hint', lon: c.lon, lat: c.lat, kind: 'hint', label: `${hints.letter}${LETTER_HINT_MASK}` });
+  }
+  return {
+    rings,
+    markers,
+    ...(hints?.country ? { hintCountry: hints.country.cc } : {}),
+    ...(hints?.area ? { hintArea: hints.area } : {}),
+  };
 }

@@ -3,6 +3,7 @@
 // game layer (rings, markers) is passed in as data and handed to the globe.
 
 import { useEffect, useImperativeHandle, useRef, type Ref } from 'react';
+import { GLOBE_RISE_MS } from '../../config.ts';
 import { loadSubdivisions, loadWorld } from '../../data/loadGeo.ts';
 import { Globe, type ViewInfo } from './globe.ts';
 import type { GlobeOverlay } from './overlay.ts';
@@ -25,6 +26,9 @@ export interface GlobeViewProps {
   subdivisions?: boolean;
   /** Slowly turn the globe (start screen). */
   idleSpin?: boolean;
+  /** Rest the globe low on the screen like a horizon (start screen); it rises and sinks
+   *  smoothly when this changes. */
+  lowered?: boolean;
   onViewChange?: (info: ViewInfo) => void;
   onMarkerHover?: (id: string | null, x: number, y: number) => void;
   onMarkerTap?: (id: string | null, x: number, y: number) => void;
@@ -38,6 +42,7 @@ export function GlobeView({
   overlay = EMPTY,
   subdivisions = false,
   idleSpin = false,
+  lowered = false,
   onViewChange,
   onMarkerHover,
   onMarkerTap,
@@ -85,6 +90,10 @@ export function GlobeView({
   useEffect(() => {
     globeRef.current?.setOverlay(overlay);
   }, [overlay]);
+
+  useEffect(() => {
+    globeRef.current?.setLowered(lowered, GLOBE_RISE_MS);
+  }, [lowered]);
 
   useEffect(() => {
     globeRef.current?.setIdleSpin(idleSpin);

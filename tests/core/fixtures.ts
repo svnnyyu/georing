@@ -5,7 +5,7 @@ import { readFileSync } from 'node:fs';
 import { buildGameData, type GameData } from '../../src/core/data.ts';
 import { destination } from '../../src/core/geo.ts';
 import { buildMatchIndex, type MatchIndex } from '../../src/core/matching.ts';
-import type { City, Country, Metro } from '../../src/core/types.ts';
+import type { City, Country, LandMask, Metro } from '../../src/core/types.ts';
 
 export const START = { lat: 10, lon: 20 };
 
@@ -69,8 +69,15 @@ export function realData(): { data: GameData; index: MatchIndex } {
   if (!real) {
     const read = <T>(name: string): T => JSON.parse(readFileSync(new URL(`../../public/data/${name}`, import.meta.url), 'utf8')) as T;
     const cities = read<City[]>('cities.json');
+    const landFile = read<Omit<LandMask, 'bits'> & { bits: string }>('land.json');
+    const land: LandMask = { ...landFile, bits: new Uint8Array(Buffer.from(landFile.bits, 'base64')) };
     real = {
-      data: buildGameData({ cities, metros: read<Metro[]>('metros.json'), countries: read<Record<string, Country>>('countries.json') }),
+      data: buildGameData({
+        cities,
+        metros: read<Metro[]>('metros.json'),
+        countries: read<Record<string, Country>>('countries.json'),
+        land,
+      }),
       index: buildMatchIndex(cities),
     };
   }

@@ -34,7 +34,7 @@ export function SettingsForm() {
         />
         {startCity && (
           <div style={{ marginTop: 'var(--space-2)' }}>
-            <p className="small">
+            <p className="small picked-city">
               {startCity.name} <span className="dim">{placeOf(data, startCity.id, { regions: settings.subdivisions })}</span>
             </p>
             <div className="spaced">
@@ -93,7 +93,7 @@ export function SettingsForm() {
         <SectionLabel>Options</SectionLabel>
         <div className="toggles">
           <Toggle label="Suggestions" checked={settings.suggestions} onChange={(v) => set({ suggestions: v })} />
-          <Toggle label="Hints" checked={false} onChange={() => {}} disabled note="soon" />
+          <Toggle label="Hints" checked={settings.hints} onChange={(v) => set({ hints: v })} />
           <Toggle label="Subdivisions" checked={settings.subdivisions} onChange={(v) => set({ subdivisions: v })} />
         </div>
       </section>

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { newGame, nextRing, submitGuess } from '../../src/core/game.ts';
+import { newGame, nextRing, submitGuess, useHint } from '../../src/core/game.ts';
 import { buildOverlay, parseMarkerId } from '../../src/ui/state/overlay.ts';
 import { synthetic } from '../core/fixtures.ts';
 
@@ -31,6 +31,15 @@ describe('globe overlay from game state', () => {
     o = buildOverlay(data, game);
     expect(o.rings.map((r) => r.current)).toEqual([false, true]);
     expect(o.markers.filter((m) => m.id.startsWith('0:')).every((m) => m.faded)).toBe(true);
+  });
+
+  it('shows the current ring\'s country and area hints', () => {
+    let game = newGame(data, { startCityId: 1, ringWidthKm: 500, ringCount: 3 }, 1, NOW);
+    expect(buildOverlay(data, game).hintCountry).toBeUndefined();
+    game = useHint(data, useHint(data, game));
+    const o = buildOverlay(data, game);
+    expect(o.hintCountry).toBe('XX');
+    expect(o.hintArea?.radiusKm).toBeGreaterThan(0);
   });
 
   it('parses marker ids back to rings and cities', () => {

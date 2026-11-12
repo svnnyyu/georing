@@ -1,10 +1,20 @@
 // Holds the one game state object for the UI (a useReducer around core/game.ts) plus the
-// loaded data and the setup settings. Components read it with useGame().
+// loaded data, the setup settings and the saved history. Components read it with useGame().
 
-import { createContext, useCallback, useContext, useMemo, useReducer, useState, type ReactNode } from 'react';
+import { createContext, useCallback, useContext, useEffect, useMemo, useReducer, useRef, useState, type ReactNode } from 'react';
 import type { GameData } from '../../core/data.ts';
 import { newGame, nextRing, skipRing, submitGuess, useHint as takeHint, type GuessOutcome } from '../../core/game.ts';
-import { loadSettings, saveSettings, type KeyValueStorage } from '../../core/history.ts';
+import {
+  clearHistory as clearSaved,
+  loadHistory,
+  loadSettings,
+  replayOf,
+  saveGame,
+  saveSettings,
+  toRecord,
+  type GameRecord,
+  type KeyValueStorage,
+} from '../../core/history.ts';
 import type { MatchIndex } from '../../core/matching.ts';
 import type { GameState, Settings } from '../../core/types.ts';
 
@@ -68,6 +78,12 @@ export interface GameContextValue {
   outcome: State['outcome'];
   /** Start a new game with these settings (or the current ones) and a new seed. */
   start: (settings?: Settings) => void;
+  /** Finished games, newest first (saved in local storage). */
+  history: GameRecord[];
+  /** Play a saved game again: same seed and settings, so the same start city and rings. The
+   *  remembered settings for new games are left as they are. */
+  replay: (record: GameRecord) => void;
+  clearHistory: () => void;
   guess: (cityId: number) => void;
   hint: () => void;
   next: () => void;
@@ -93,6 +109,28 @@ export function GameProvider({ data, index, children }: { data: GameData; index:
     [settings],
   );
 
+  // History: loaded once; each game is saved once, when it finishes (abandoned games aren't).
+  const [history, setHistory] = useState<GameRecord[]>(() => loadHistory(browserStorage()));
+  const saved = useRef<string | null>(null);
+  useEffect(() => {
+    const g = state.game;
+    if (!g || g.phase !== 'finished') return;
+    const key = `${g.seed}:${g.createdAt}`;
+    if (saved.current === key) return;
+    saved.current = key;
+    setHistory(saveGame(browserStorage(), toRecord(g)));
+  }, [state.game]);
+
+  const replay = useCallback((record: GameRecord) => {
+    const { seed, settings: s } = replayOf(record);
+    dispatch({ type: 'start', settings: s, seed, now: new Date() });
+  }, []);
+
+  const clearHistory = useCallback(() => {
+    clearSaved(browserStorage());
+    setHistory([]);
+  }, []);
+
   const changeSettings = useCallback((s: Settings) => {
     setSettings(s);
     saveSettings(browserStorage(), s);
@@ -107,13 +145,16 @@ export function GameProvider({ data, index, children }: { data: GameData; index:
       game: state.game,
       outcome: state.outcome,
       start,
+      history,
+      replay,
+      clearHistory,
       guess: (cityId) => dispatch({ type: 'guess', cityId }),
       hint: () => dispatch({ type: 'hint' }),
       next: () => dispatch({ type: 'next' }),
       skip: () => dispatch({ type: 'skip' }),
       quit: () => dispatch({ type: 'quit' }),
     }),
-    [data, index, settings, changeSettings, state, start],
+    [data, index, settings, changeSettings, state, start, history, replay, clearHistory],
   );
 
   return <GameContext.Provider value={value}>{children}</GameContext.Provider>;

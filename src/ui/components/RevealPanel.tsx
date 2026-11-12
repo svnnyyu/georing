@@ -1,4 +1,4 @@
-// Shown after each ring: the result, the ring's top 5 with the player's guesses marked, and
+// Shown after each ring: the result, the ring's top 5 with the player's guesses coloured, and
 // the Next ring button.
 
 import { REVEAL_TOP_N } from '../../config.ts';
@@ -40,11 +40,15 @@ export function RevealPanel({ game, onNext }: { game: GameState; onNext: () => v
               const c = data.byId.get(unitId)!;
               const result = guessed.get(unitId);
               return (
-                <div key={unitId} className={i === 0 ? 'log-row answer' : 'log-row'}>
+                <div key={unitId} className="log-row">
                   <span className="num">{i + 1}</span>
-                  <span className={`sq ${result ?? 'unused'}`} aria-label={result ?? 'not guessed'} />
+                  {/* Cities you guessed are coloured: green for the right one, red otherwise. The
+                      place is dim, and so is the "…" when a long one is cut off. */}
                   <span className="name">
-                    {c.name} <span className="dim">{placeOf(data, c.id, { regions: settings.subdivisions })}</span>
+                    <span className={result ? `city text-${result}` : 'city'} aria-label={result ? `${c.name} (your guess)` : undefined}>
+                      {c.name}
+                    </span>{' '}
+                    {placeOf(data, c.id, { regions: settings.subdivisions })}
                   </span>
                   <span className="num">{formatPop(pop)}</span>
                 </div>

@@ -9,16 +9,18 @@ export function MenuDialog({
   onClose,
   onNewGame,
   onSettings,
+  onHistory,
 }: {
   onClose: () => void;
   onNewGame: () => void;
   onSettings: () => void;
+  onHistory: () => void;
 }) {
   return (
     <Modal kicker="GeoRing" title="Menu" onClose={onClose}>
       <SectionLabel>Play</SectionLabel>
       <div className="tile-grid">
-        <button type="button" className="menu-tile selected" onClick={onNewGame}>
+        <button type="button" className="menu-tile" onClick={onNewGame}>
           <PlayIcon />
           New game
         </button>
@@ -29,9 +31,9 @@ export function MenuDialog({
       </div>
       <SectionLabel>More</SectionLabel>
       <div className="tile-grid">
-        <button type="button" className="menu-tile" disabled title="Coming in a later version">
+        <button type="button" className="menu-tile" onClick={onHistory}>
           <ClockIcon />
-          History <span className="soon">soon</span>
+          History
         </button>
         <button type="button" className="menu-tile" disabled title="Coming in a later version">
           <InfoIcon />

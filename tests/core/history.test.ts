@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { HISTORY_CAP, STORAGE_KEYS } from '../../src/config.ts';
-import { defaultSettings, newGame, nextRing, submitGuess, useHint } from '../../src/core/game.ts';
+import { defaultSettings, newGame, nextRing, skipRing, submitGuess, useHint } from '../../src/core/game.ts';
 import {
   clearHistory,
   historyStats,
@@ -63,9 +63,26 @@ describe('records', () => {
       answerId: 2,
       guesses: [5, 3, 4, 10],
       status: 'missed',
+      guessesUsed: 3, // the outside guess doesn't count
       hints: ['country'],
     });
-    expect(r.rings[1]).toMatchObject({ answerId: 7, guesses: [6, 7], status: 'solved', hints: [] });
+    expect(r.rings[1]).toMatchObject({ answerId: 7, guesses: [6, 7], status: 'solved', guessesUsed: 2, hints: [] });
+    expect(r.rings[1]!.skipped).toBeUndefined();
+  });
+
+  it('marks skipped rings', () => {
+    const { data } = synthetic();
+    let s = newGame(data, { startCityId: 1, ringWidthKm: 500, ringCount: 1 }, 3, NOW);
+    s = nextRing(skipRing(s));
+    expect(toRecord(s).rings[0]).toMatchObject({ status: 'missed', skipped: true, guessesUsed: 0 });
+  });
+
+  it('survives a page reload: what is saved reads back the same', () => {
+    const storage = memoryStorage();
+    const r = toRecord(finishedGame());
+    saveGame(storage, r);
+    const reloaded = loadHistory(storage); // a fresh read, parsed from the stored text
+    expect(reloaded).toEqual([r]);
   });
 
   it('replays a saved game exactly', () => {

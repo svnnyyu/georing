@@ -35,11 +35,21 @@ export interface Country {
   aliases: string[];
 }
 
-/** The three data files, as loaded. */
+/** Land/water grid (public/data/land.json), decoded: one bit per res-degree cell. */
+export interface LandMask {
+  res: number;
+  width: number;
+  height: number;
+  bits: Uint8Array;
+}
+
+/** The data files, as loaded. */
 export interface RawData {
   cities: City[];
   metros: Metro[];
   countries: Record<string, Country>;
+  /** Optional: without it the area hint ignores land and water. */
+  land?: LandMask;
 }
 
 /** City = each city on its own; Metro = cities merged into their GHSL urban centre. */
@@ -55,6 +65,8 @@ export interface Settings {
   suggestions: boolean;
   /** Show states/provinces: their borders on the globe, and in place names. */
   subdivisions: boolean;
+  /** Offer the three hints (country, area circle, first letter) in each ring. */
+  hints: boolean;
   measure: PopulationMeasure;
   mode: GameMode;
 }

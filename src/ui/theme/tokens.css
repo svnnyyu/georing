@@ -15,6 +15,7 @@
   --ring: #3fe0c0;
   --ring-fill-opacity: 0.15;
   --hint: #c792ea;
+  --bulb: #f2cc5b; /* hint button: lightbulb yellow */
   --correct: #5fe08a;
   --wrong: #ff5c6c;
   --outside: #f5d547;
@@ -37,14 +38,20 @@
   --marker-outline: var(--bg);
   --marker-faded-opacity: 0.45;
   --marker-label-size: 11px;
+  --hint-fill-opacity: 0.18; /* country hint tint */
+  --hint-width: 1.5;
+  --hint-dash: 6; /* area circle: dash length (px) */
+  --hint-gap: 4; /* and gap */
 
   /* Layout */
   --hud-width: 560px; /* the in-game box at the top centre */
   --popup-width: 440px; /* reveal and summary popups */
   --dialog-width: 520px; /* menu and settings */
-  --globe-rest-offset: 62%; /* start screen: how far the globe sits below its centre */
+  --globe-rest-offset: 0.62; /* start screen: globe centre below screen centre (share of height; the renderer reads it) */
   --ease-out: cubic-bezier(0.22, 1, 0.36, 1); /* fast start, gentle stop: things arriving */
   --ease-in: cubic-bezier(0.64, 0, 0.78, 0); /* gentle start, fast finish: things leaving */
+  --scrollbar-size: 6px; /* popup scrollbars (Safari; others use the browser's thin one) */
+  --small-btn-height: 26px; /* Hint and Skip in the box at the top */
   --slider-thumb-size: 16px; /* roughly the browser's range thumb, for lining up ticks */
 
   /* Text sizes */
@@ -74,6 +81,6 @@
    as a horizon. (Media queries can't use variables, so the breakpoint is written here.) */
 @media (max-width: 767px) {
   :root {
-    --globe-rest-offset: 36%;
+    --globe-rest-offset: 0.36;
   }
 }

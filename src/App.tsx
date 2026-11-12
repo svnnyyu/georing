@@ -4,8 +4,8 @@
 // menu (top left) opens the menu and settings popups. The camera flies to the start city when
 // a game starts, zooms out to fit each new ring, and flies home when the game is left.
 
-import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type RefObject } from 'react';
-import { FLY_START_MS, GLOBE_RISE_MS, HUD_ENTER_MS, START_EXIT_MS } from './config.ts';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type RefObject } from 'react';
+import { FLY_START_MS, GLOBE_RISE_MS, HINT_PAN_MS, HUD_ENTER_MS, START_EXIT_MS } from './config.ts';
 import { cityOrThrow } from './core/data.ts';
 import { loadData, type LoadedData } from './data/loadData.ts';
 import { MenuIcon } from './ui/components/Icons.tsx';
@@ -14,6 +14,7 @@ import { RevealPanel } from './ui/components/RevealPanel.tsx';
 import { GlobeView, type GlobeHandle } from './ui/globe/GlobeView.tsx';
 import type { GlobeOverlay } from './ui/globe/overlay.ts';
 import { MenuDialog, SettingsDialog } from './ui/screens/Dialogs.tsx';
+import { HistoryDialog } from './ui/screens/HistoryDialog.tsx';
 import { Hud } from './ui/screens/Hud.tsx';
 import { StartScreen } from './ui/screens/StartScreen.tsx';
 import { SummaryDialog } from './ui/screens/SummaryDialog.tsx';
@@ -71,6 +72,7 @@ export default function App() {
       <div className={state.up ? 'globe-stage up' : 'globe-stage down'}>
         <GlobeView
           ref={globe}
+          lowered={!state.up}
           overlay={state.overlay}
           subdivisions={state.subdivisions}
           idleSpin={state.spin && !state.up}
@@ -91,7 +93,7 @@ export default function App() {
   );
 }
 
-type Dialog = 'menu' | 'settings' | null;
+type Dialog = 'menu' | 'settings' | 'history' | null;
 
 function Game({ controls }: { controls: GlobeControls }) {
   const { data, game, next, quit, settings } = useGame();
@@ -116,14 +118,21 @@ function Game({ controls }: { controls: GlobeControls }) {
   // Was the start screen showing when this game began? (Not for Play again from a summary.)
   const prevGameKey = useRef<string | null>(null);
   const fromStart = useRef(true);
-  useEffect(() => {
+  // A layout effect, so "leaving" is set before the browser paints: otherwise the start
+  // screen would vanish for one frame and then come back to play its exit (a flicker).
+  useLayoutEffect(() => {
     fromStart.current = prevGameKey.current === null;
     prevGameKey.current = gameKey;
     if (!gameKey || !fromStart.current) return;
     setGlobe({ spin: false });
     setLeaving(true);
     const t = window.setTimeout(() => setLeaving(false), START_EXIT_MS);
-    return () => window.clearTimeout(t);
+    return () => {
+      // Whatever happens next (the game ends, or the effect is re-run, as a live code reload
+      // does), the start screen must not stay stuck half-way out with its title hidden.
+      window.clearTimeout(t);
+      setLeaving(false);
+    };
   }, [gameKey, setGlobe]);
 
   // Camera: when a game starts, let the globe rise first, then fly to the start city; zoom out
@@ -162,6 +171,13 @@ function Game({ controls }: { controls: GlobeControls }) {
     return () => window.clearTimeout(t);
   }, [cameraKey]);
 
+  // The area hint: glide the camera (same zoom) to centre the new dashed circle.
+  const hintArea = game && game.phase === 'playing' ? game.ringStates[game.current]!.hints.area : undefined;
+  const hintAreaKey = hintArea ? `${hintArea.lat},${hintArea.lon}` : null;
+  useEffect(() => {
+    if (hintArea) void globe.current?.flyTo(hintArea.lat, hintArea.lon, undefined, HINT_PAN_MS);
+  }, [hintAreaKey]);
+
   // A new ring or game closes any open info card.
   useEffect(() => {
     setCard(null);
@@ -191,8 +207,8 @@ function Game({ controls }: { controls: GlobeControls }) {
 
   return (
     <>
-      {/* Info cards are positioned in globe coordinates; the globe is "up" (untransformed) in
-          a game, so a full-screen layer lines up with it. */}
+      {/* Info cards are positioned in canvas coordinates; the canvas fills the screen, so a
+          full-screen layer lines up with it. */}
       <div className="card-layer" ref={area}>
         {game && card && <InfoCard game={game} anchor={card} bounds={bounds} />}
       </div>
@@ -201,10 +217,10 @@ function Game({ controls }: { controls: GlobeControls }) {
         <MenuIcon />
       </button>
 
-      {(!game || leaving) && <StartScreen leaving={leaving} />}
+      {(!game || leaving) && <StartScreen leaving={leaving && game !== null} />}
       {game && game.phase !== 'finished' && <Hud game={game} />}
       {game && game.phase === 'ringOver' && <RevealPanel game={game} onNext={next} />}
-      {game && game.phase === 'finished' && <SummaryDialog game={game} />}
+      {game && game.phase === 'finished' && <SummaryDialog game={game} onHistory={() => setDialog('history')} />}
 
       {dialog === 'menu' && (
         <MenuDialog
@@ -214,8 +230,10 @@ function Game({ controls }: { controls: GlobeControls }) {
             close();
           }}
           onSettings={() => setDialog('settings')}
+          onHistory={() => setDialog('history')}
         />
       )}
+      {dialog === 'history' && <HistoryDialog onClose={close} />}
       {dialog === 'settings' && <SettingsDialog onClose={close} inGame={game !== null} />}
     </>
   );

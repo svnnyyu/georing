@@ -1,8 +1,13 @@
 import { describe, expect, it } from 'vitest';
-import { HINT_AREA_MAX_CITIES, HINT_AREA_MIN_RADIUS_KM } from '../../src/config.ts';
+import {
+  HINT_AREA_MAX_OFFSET_FRACTION,
+  HINT_AREA_MIN_IN_RING,
+  HINT_AREA_MIN_LAND,
+  HINT_AREA_RADIUS_FRACTION,
+} from '../../src/config.ts';
 import { buildGameData, cityOrThrow, unitIdOf } from '../../src/core/data.ts';
 import { destination, distanceKm } from '../../src/core/geo.ts';
-import { areaCircle, countryHint, firstLetter, nextHint } from '../../src/core/hints.ts';
+import { areaCircle, circleShares, countryHint, firstLetter, nextHint } from '../../src/core/hints.ts';
 import { createRng } from '../../src/core/random.ts';
 import { buildRings } from '../../src/core/rings.ts';
 import type { City } from '../../src/core/types.ts';
@@ -30,36 +35,72 @@ describe('hint order and simple hints', () => {
 });
 
 /** Checks the area circle contract for many random seeds. */
-function checkCircles(data: ReturnType<typeof synthetic>['data'], ring: ReturnType<typeof buildRings>[number]) {
+function checkCircles(
+  data: ReturnType<typeof synthetic>['data'],
+  ring: ReturnType<typeof buildRings>[number],
+  startId: number,
+) {
   const answer = cityOrThrow(data, ring.answerId!);
-  for (let seed = 0; seed < 300; seed++) {
-    const c = areaCircle(data, ring, ring.answerId!, createRng(seed));
-    expect(distanceKm(c, answer)).toBeLessThanOrEqual(c.radiusKm * 0.5 + 1e-6);
-    expect(c.radiusKm).toBeGreaterThanOrEqual(HINT_AREA_MIN_RADIUS_KM);
-    expect(c.radiusKm).toBeLessThanOrEqual((ring.outerKm - ring.innerKm) * 0.25 + 1e-9);
-    const inside = ring.unitIds.filter((id) => distanceKm(c, cityOrThrow(data, id)) <= c.radiusKm).length;
-    if (c.radiusKm > HINT_AREA_MIN_RADIUS_KM) expect(inside).toBeLessThanOrEqual(HINT_AREA_MAX_CITIES);
+  const start = cityOrThrow(data, startId);
+  const radius = HINT_AREA_RADIUS_FRACTION * (ring.outerKm - ring.innerKm);
+  let maxOffset = 0;
+  for (let seed = 0; seed < 100; seed++) {
+    const c = areaCircle(data, ring, ring.answerId!, start, createRng(seed));
+    expect(c.radiusKm).toBeCloseTo(radius, 6); // diameter = 2 × the fraction of the ring width
+    const d = distanceKm(c, answer);
+    expect(d).toBeLessThanOrEqual(c.radiusKm * HINT_AREA_MAX_OFFSET_FRACTION + 1e-6); // answer inside
+    maxOffset = Math.max(maxOffset, d / c.radiusKm);
   }
+  expect(maxOffset).toBeGreaterThan(0.3); // not always in the middle
 }
 
 describe('area circle', () => {
-  it('always contains the answer, off-centre, and shrinks in dense regions (real data)', () => {
+  it('always contains the answer, anywhere inside, at the configured size (real data)', () => {
     const { data } = realData();
     for (const name of ['Tokyo', 'London', 'Lagos', 'Chongqing']) {
-      const rings = buildRings(data, idOf(data, name), { widthKm: 200, ringCount: 3, measure: 'city' });
-      for (const ring of rings) if (ring.answerId !== null) checkCircles(data, ring);
+      const startId = idOf(data, name);
+      const rings = buildRings(data, startId, { widthKm: 1000, ringCount: 3, measure: 'city' });
+      for (const ring of rings) if (ring.answerId !== null) checkCircles(data, ring, startId);
     }
+  });
+
+  it('lies mostly inside the ring and over land when it can (real data)', () => {
+    const { data } = realData();
+    // Coastal starts, where a careless circle would sit half in the sea or over the ring edge.
+    for (const name of ['Tokyo', 'Lagos', 'Lima', 'Sydney', 'Brussels', 'Mumbai']) {
+      const startId = idOf(data, name);
+      const start = cityOrThrow(data, startId);
+      for (const ring of buildRings(data, startId, { widthKm: 1000, ringCount: 2, measure: 'city' })) {
+        if (ring.answerId === null) continue;
+        let ok = 0;
+        for (let seed = 0; seed < 20; seed++) {
+          const c = areaCircle(data, ring, ring.answerId, start, createRng(seed));
+          const s = circleShares(data, c, ring, start);
+          if (s.inRing >= HINT_AREA_MIN_IN_RING && s.land >= HINT_AREA_MIN_LAND) ok++;
+        }
+        expect(ok, `${name} ring ${ring.index + 1}`).toBeGreaterThanOrEqual(15); // narrow Japan sometimes cannot
+      }
+    }
+  });
+
+  it('still gives a circle around a small island, the best it can', () => {
+    const { data } = realData();
+    const startId = idOf(data, 'Honolulu');
+    const ring = buildRings(data, startId, { widthKm: 500, ringCount: 1, measure: 'city' })[0]!;
+    if (ring.answerId !== null) checkCircles(data, ring, startId);
   });
 
   it('is repeatable for the same seed', () => {
     const { data } = realData();
-    const ring = buildRings(data, idOf(data, 'Tokyo'), { widthKm: 100, ringCount: 1, measure: 'city' })[0]!;
-    expect(areaCircle(data, ring, ring.answerId!, createRng(9))).toEqual(
-      areaCircle(data, ring, ring.answerId!, createRng(9)),
+    const startId = idOf(data, 'Tokyo');
+    const start = cityOrThrow(data, startId);
+    const ring = buildRings(data, startId, { widthKm: 500, ringCount: 1, measure: 'city' })[0]!;
+    expect(areaCircle(data, ring, ring.answerId!, start, createRng(9))).toEqual(
+      areaCircle(data, ring, ring.answerId!, start, createRng(9)),
     );
   });
 
-  it('works across the date line and near the poles', () => {
+  it('works across the date line and near the poles (no land grid)', () => {
     const make = (start: { lat: number; lon: number }): City[] => {
       const cities: City[] = [
         { id: 1, name: 'Start', ascii: 'Start', ...start, pop: 1e6, cc: 'XX', admin1: '', aliases: [], wellKnown: true },
@@ -74,7 +115,7 @@ describe('area circle', () => {
       const data = buildGameData({ cities: make(start), metros: [], countries: {} });
       const startId = unitIdOf(data, 'city', 1);
       for (const ring of buildRings(data, startId, { widthKm: 100, ringCount: 2, measure: 'city' })) {
-        if (ring.answerId !== null) checkCircles(data, ring);
+        if (ring.answerId !== null) checkCircles(data, ring, startId);
       }
     }
   });

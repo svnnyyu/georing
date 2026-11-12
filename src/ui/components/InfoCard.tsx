@@ -23,8 +23,9 @@ export function InfoCard({ game, anchor, bounds }: { game: GameState; anchor: Ca
     const c = data.byId.get(game.startId)!;
     return (
       <Card anchor={anchor} bounds={bounds}>
-        <span className="name">{c.name}</span>
-        <span className="dim">{placeOf(data, c.id, { regions })} · start city</span>
+        <span className="name">
+          {c.name} <span className="place">{placeOf(data, c.id, { regions })} · start city</span>
+        </span>
         <PopulationLines cityPop={c.pop} metro={metroOf(data, c.id)} measure={game.settings.measure} />
       </Card>
     );
@@ -32,8 +33,9 @@ export function InfoCard({ game, anchor, bounds }: { game: GameState; anchor: Ca
   const info = guessInfo(data, game, anchor.ref.ring, anchor.ref.unitId);
   return (
     <Card anchor={anchor} bounds={bounds}>
-      <span className="name">{info.name}</span>
-      <span className="dim">{placeOf(data, info.unitId, { regions })}</span>
+      <span className="name">
+        {info.name} <span className="place">{placeOf(data, info.unitId, { regions })}</span>
+      </span>
       <PopulationLines cityPop={info.cityPop} metro={info.metro} measure={info.measure} />
       {info.rank && (
         <span>

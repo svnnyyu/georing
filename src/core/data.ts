@@ -5,7 +5,7 @@
 // (Newark -> New York City), and the unit's population is the metro's. Cities outside
 // every metro are their own unit with their city population.
 
-import type { City, Country, Metro, PopulationMeasure, RawData } from './types.ts';
+import type { City, Country, LandMask, Metro, PopulationMeasure, RawData } from './types.ts';
 
 export interface GameData {
   cities: City[];
@@ -16,6 +16,7 @@ export interface GameData {
   metroMembers: Map<number, number[]>;
   /** Unit ids per measure, most populous first (computed once). */
   units: Record<PopulationMeasure, number[]>;
+  land?: LandMask;
 }
 
 export function buildGameData(raw: RawData): GameData {
@@ -34,7 +35,7 @@ export function buildGameData(raw: RawData): GameData {
     city: listUnits(partial, 'city'),
     metro: listUnits(partial, 'metro'),
   };
-  return { ...partial, units };
+  return { ...partial, units, ...(raw.land ? { land: raw.land } : {}) };
 }
 
 type DataWithoutUnits = Omit<GameData, 'units'>;

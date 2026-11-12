@@ -3,7 +3,7 @@
 // write is wrapped in try/catch so the game still plays when storage is unavailable.
 
 import { HISTORY_CAP, STORAGE_KEYS } from '../config.ts';
-import { sanitizeSettings } from './game.ts';
+import { guessesUsed, sanitizeSettings } from './game.ts';
 import type { GameState, HintKind, RingStatus, Settings } from './types.ts';
 
 /** The part of localStorage the game uses. */
@@ -20,6 +20,10 @@ export interface RingRecord {
   /** Unit ids in the order guessed, outside-the-ring guesses included. */
   guesses: number[];
   status: Exclude<RingStatus, 'playing'>;
+  /** Guesses that counted against the limit (outside-the-ring ones don't). */
+  guessesUsed?: number;
+  /** The player pressed Skip. */
+  skipped?: boolean;
   hints: HintKind[];
 }
 
@@ -49,6 +53,8 @@ export function toRecord(state: GameState): GameRecord {
         guesses: rs.guesses.map((g) => g.unitId),
         // A ring still 'playing' can only appear in an unfinished game; count it as missed.
         status: rs.status === 'playing' ? 'missed' : rs.status,
+        guessesUsed: guessesUsed(rs),
+        ...(rs.skipped ? { skipped: true } : {}),
         hints: rs.hints.used,
       };
     }),

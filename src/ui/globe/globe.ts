@@ -8,6 +8,8 @@ import { pointer, pointers, select, type Selection } from 'd3-selection';
 import { zoom as d3zoom, zoomIdentity, type D3ZoomEvent, type ZoomBehavior } from 'd3-zoom';
 import {
   BORDER_OPACITY,
+  HINT_FADE_MS,
+  HOME_ZOOM,
   IDLE_RESUME_MS,
   IDLE_SPIN_DEG_PER_SEC,
   SUBDIVISION_OPACITY,
@@ -26,6 +28,7 @@ import {
 } from '../../config.ts';
 import type { Detail, WorldLayers } from '../../data/loadGeo.ts';
 import { prepareLines, prepareWorld, visible, type Item, type PreparedWorld } from './layers.ts';
+import { fadeAlpha, updateFading, type Fading } from './fade.ts';
 import { drawOverlay, hitTest, type GlobeOverlay, type ProjectedMarker } from './overlay.ts';
 import { flyPath, scaleExtent, scaleForRadius, wholeEarthScale, type View, type Viewport } from './camera.ts';
 import { readGlobeTheme, type GlobeTheme } from './theme.ts';
@@ -90,6 +93,14 @@ export class Globe {
   // Game layer: rings and markers
   private overlay: GlobeOverlay = { rings: [], markers: [] };
   private readonly born = new Map<string, number>();
+  /** The country and area hints, with when they appeared or started to leave (they fade in
+   *  when shown and fade out when the next ring clears them). */
+  private hintCountry: Fading<string> | null = null;
+  private hintArea: Fading<NonNullable<GlobeOverlay['hintArea']>> | null = null;
+  /** How far the globe's centre sits below the screen's centre, as a share of the screen
+   *  height (the start screen's "horizon"), animated between lowered and raised. */
+  private lowered = true;
+  private lift = { from: 1, to: 1, t0: 0, ms: 0 };
   private projected: ProjectedMarker[] = [];
   private hovered: string | null = null;
   private dragging = false;
@@ -126,13 +137,13 @@ export class Globe {
 
   /** Call when the canvas's CSS size changes. Keeps the current zoom level. */
   resize(width: number, height: number, dpr = window.devicePixelRatio || 1): void {
-    const zoom = this.sized ? this.zoom : 1; // first size: start at the whole-Earth view
+    const zoom = this.sized ? this.zoom : HOME_ZOOM; // first size: start at the home view
     this.sized = true;
     this.viewport = { width: Math.max(1, width), height: Math.max(1, height) };
     this.dpr = dpr;
     this.canvas.width = Math.round(this.viewport.width * dpr);
     this.canvas.height = Math.round(this.viewport.height * dpr);
-    this.projection.translate([this.viewport.width / 2, this.viewport.height / 2]);
+    this.theme = readGlobeTheme(); // the rest offset differs between phone and desktop
     this.projection.clipExtent([
       [0, 0],
       [this.viewport.width, this.viewport.height],
@@ -152,10 +163,32 @@ export class Globe {
   setOverlay(overlay: GlobeOverlay): void {
     const now = performance.now();
     const ids = new Set(overlay.markers.map((m) => m.id));
-    for (const m of overlay.markers) if (m.kind === 'correct' && !this.born.has(m.id)) this.born.set(m.id, now);
+    for (const m of overlay.markers) {
+      if ((m.kind === 'correct' || m.kind === 'hint') && !this.born.has(m.id)) this.born.set(m.id, now);
+    }
     for (const id of this.born.keys()) if (!ids.has(id)) this.born.delete(id);
+    this.hintCountry = updateFading(this.hintCountry, overlay.hintCountry, (cc) => cc, now);
+    this.hintArea = updateFading(this.hintArea, overlay.hintArea, (a) => `${a.lat},${a.lon},${a.radiusKm}`, now);
     this.overlay = overlay;
     this.requestDraw();
+  }
+
+  /** Lower the globe to rest low on the screen like a horizon (start screen), or raise it to
+   *  the middle (in a game). The map always fills the canvas, so no edge ever shows. */
+  setLowered(on: boolean, durationMs = 0): void {
+    if (on === this.lowered) return;
+    this.lowered = on;
+    const now = performance.now();
+    this.lift = { from: this.liftAt(now), to: on ? 1 : 0, t0: now, ms: durationMs };
+    this.requestDraw();
+  }
+
+  /** 1 = fully lowered, 0 = raised (eased). */
+  private liftAt(now: number): number {
+    const { from, to, t0, ms } = this.lift;
+    const t = ms > 0 ? Math.min(1, (now - t0) / ms) : 1;
+    const e = to < from ? 1 - (1 - t) ** 4 : t < 0.5 ? 8 * t ** 4 : 1 - (-2 * t + 2) ** 4 / 2; // rise: ease-out; lower: ease-in-out
+    return from + (to - from) * e;
   }
 
   /** State/province borders to draw, or null to hide them. */
@@ -215,14 +248,17 @@ export class Globe {
     return this.flyToView({ center: [lon, lat], scale }, durationMs);
   }
 
-  /** Fly back to the starting whole-Earth view. */
+  /** Fly back to the start screen's view (the whole Earth, a little larger: HOME_ZOOM). */
   flyHome(): Promise<void> {
     if (!this.sized) {
       // Not laid out yet: the first resize() sets the whole-Earth zoom.
       this.projection.rotate(rotationFor(GLOBE_START_VIEW.lon, GLOBE_START_VIEW.lat));
       return Promise.resolve();
     }
-    return this.flyToView({ center: [GLOBE_START_VIEW.lon, GLOBE_START_VIEW.lat], scale: wholeEarthScale(this.viewport) });
+    return this.flyToView({
+      center: [GLOBE_START_VIEW.lon, GLOBE_START_VIEW.lat],
+      scale: HOME_ZOOM * wholeEarthScale(this.viewport),
+    });
   }
 
   /** durationMs overrides the distance-based flight time. */
@@ -458,14 +494,18 @@ export class Globe {
     const { width, height } = this.viewport;
     ctx.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
     ctx.clearRect(0, 0, width, height);
+    const now = performance.now();
+    const lift = this.liftAt(now);
+    const cy = height / 2 + lift * this.theme.globeRestOffset * height;
+    this.projection.translate([width / 2, cy]);
     // Resampling (curving long edges) is on for the sphere and the graticule, whose lines are
     // long and would otherwise turn into straight chords. It's off for the map layers below:
     // their edges are already short, so it would only cost time.
     this.projection.precision(RESAMPLE_PRECISION_PX);
     // Clip to the small circle that just encloses the screen (not the whole hemisphere):
     // d3 drops everything beyond it before projecting, which is what keeps close zooms fast.
-    const halfDiagonal = Math.hypot(width, height) / 2;
-    const cap = Math.asin(Math.min(1, halfDiagonal / this.projection.scale()));
+    const farthest = Math.hypot(width / 2, Math.max(cy, height - cy)); // to the farthest corner
+    const cap = Math.asin(Math.min(1, farthest / this.projection.scale()));
     this.projection.clipAngle(Math.min(90, (cap * 180) / Math.PI + CLIP_MARGIN_DEG));
     path.projection(this.projection);
 
@@ -534,15 +574,46 @@ export class Globe {
         ctx.globalAlpha = 1;
       }
     }
+    // 5. Country hint: the answer's country outlined and tinted (under the rings)
+    let fading = lift !== this.lift.to;
+    const countryAlpha = fadeAlpha(this.hintCountry, now);
+    if (this.hintCountry && countryAlpha === null) this.hintCountry = null;
+    const hinted = world && this.hintCountry ? world.countries.get(this.hintCountry.value) : undefined;
+    if (hinted && countryAlpha !== null) {
+      const f = countryAlpha;
+      fading ||= this.hintCountry!.at + HINT_FADE_MS > now;
+      ctx.beginPath();
+      for (const it of visible(hinted, this.view.center, cap)) path(it.geo);
+      ctx.globalAlpha = theme.hintFillOpacity * f;
+      ctx.fillStyle = theme.hint;
+      ctx.fill();
+      ctx.globalAlpha = f;
+      ctx.strokeStyle = theme.hint;
+      ctx.lineWidth = theme.hintWidth;
+      ctx.stroke();
+      ctx.globalAlpha = 1;
+    }
+    const areaAlpha = fadeAlpha(this.hintArea, now) ?? 0;
+    if (this.hintArea && areaAlpha === 0 && this.hintArea.leaving) this.hintArea = null;
+    if (this.hintArea) fading ||= this.hintArea.at + HINT_FADE_MS > now;
     // Rim of the globe
     this.projection.precision(RESAMPLE_PRECISION_PX);
     stroke({ type: 'Sphere' }, theme.coast, theme.coastWidth);
 
-    // 6-8. Rings and markers
-    const now = performance.now();
-    const drawn = drawOverlay(ctx, path, this.projection, theme, this.overlay, { center: this.view.center, cap }, this.born, now);
+    // 6-8. Rings, area hint and markers
+    const drawn = drawOverlay(
+      ctx,
+      path,
+      this.projection,
+      theme,
+      { ...this.overlay, hintArea: this.hintArea?.value },
+      { center: this.view.center, cap },
+      this.born,
+      now,
+      areaAlpha,
+    );
     this.projected = drawn.projected;
-    if (drawn.animating) this.requestDraw();
+    if (drawn.animating || fading) this.requestDraw();
 
     this.lastFrameMs = performance.now() - start;
     this.reportView(detail);

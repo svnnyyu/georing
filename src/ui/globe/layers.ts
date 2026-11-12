@@ -18,6 +18,8 @@ export interface PreparedWorld {
   coast: Item[];
   lakes: Item[];
   borders: Item[];
+  /** Country polygons by ISO code (cc), for the country hint. */
+  countries: Map<string, Item[]>;
 }
 
 /** Natural Earth cuts polygons that cross the 180° meridian (Antarctica, Chukotka) along it,
@@ -95,12 +97,23 @@ function polygons(layer: FeatureCollection | Feature | null): Item[] {
   });
 }
 
+function countriesByCode(world: WorldLayers): Map<string, Item[]> {
+  const out = new Map<string, Item[]>();
+  for (const f of world.countries.features) {
+    const cc = (f.properties as { cc?: string } | null)?.cc;
+    if (!cc || cc === '-99') continue;
+    out.set(cc, [...(out.get(cc) ?? []), ...polygons(f)]);
+  }
+  return out;
+}
+
 export function prepareWorld(world: WorldLayers): PreparedWorld {
   const land = polygons(world.land);
   return {
     land,
     coast: coastlines(land),
     lakes: polygons(world.lakes),
+    countries: countriesByCode(world),
     borders: world.borders.coordinates.map((coordinates) => item({ type: 'LineString', coordinates })),
   };
 }

@@ -23,7 +23,7 @@ Every ring in a game has the same width, set by the player, and the target in ea
 | Number of rings | Slider, 1–8 (with tick marks) | 3 |
 | Guesses per ring | Fixed at 3 for now (no slider) | 3 |
 | Suggestions | Toggle (see Guess matching) | Off |
-| Hints | Toggle (shown disabled until milestone 6) | — |
+| Hints | Toggle: offer the three hints in each ring | On |
 | Subdivisions | Toggle: state/province borders on the globe (fading in with zoom) and the state/province in every place name | Off |
 | Population measure | City (city proper) / Metro (urban area, see Metro mode) | City |
 | Mode | Population (now); Density (later, shown disabled) | Population |
@@ -62,14 +62,14 @@ The Population measure setting switches what "population" means for the whole ga
 4. A wrong guess inside the ring places a red marker on that city, labelled with its name.
 5. A correct guess places a green marker and ends the ring as solved.
 6. When guesses run out, the answer is revealed with a green marker and the ring ends as missed.
-7. After each ring, a reveal panel lists the ring's top 5 cities by population, with the player's guesses marked. A Next ring button then zooms the camera out to fit the next ring.
+7. After each ring, a reveal panel lists the ring's top 5 cities by population, with the player's guesses coloured. A Next ring button then zooms the camera out to fit the next ring.
 8. Markers from earlier rings stay on the globe, faded.
 
 ### Guess info card
 
 Hovering over any guessed city's marker (tapping on phones) shows a small card:
 
-- Name, state or province, and country. Flags come later.
+- Name, then on the same line in smaller dim text the country (and state or province with the Subdivisions setting); the line never wraps. Flags come later.
 - Population: both the city figure and the metro figure (when the city is in a metro), with the one for the current Population measure highlighted. In Metro mode the card is for the metro's main city and also says how many cities the metro merges.
 - Rank in the ring, written as "#2 of 14" (2nd most populous of the 14 cities in this ring).
 - For a yellow (outside) guess, distance instead of rank, for example "120 km outside".
@@ -80,12 +80,12 @@ All of this shows as soon as a city is guessed. A difficulty setting that hides 
 
 The game is called **GeoRing** on screen (a working title). The globe always fills the screen; everything else floats on top of it, centred.
 
-- **Start screen**: the title (pixel display font, pale mint with a green/blue split), a tagline, a big Start game button and a one-line summary of the current settings (settings live in the menu). The globe rests low on the screen like a horizon (`--globe-rest-offset`), turning slowly (`IDLE_SPIN_DEG_PER_SEC`) from the moment the page opens, even while the city data is still loading ("Loading cities…" shows over it); it can't be dragged or zoomed there. Starting a game plays a sequence (timings in `config.ts`): the title and tagline lift away and the button and summary drop away (`START_EXIT_MS`), the globe rises to the centre (`GLOBE_RISE_MS`), then the camera flies to the start city, always taking `FLY_START_MS` however near or far the city is, and the in-game box slides down from the top (`HUD_ENTER_MS`). UI animations use smooth easing curves (`--ease-out`, `--ease-in`); stepped easing looked like dropped frames at these sizes. Leaving a game flies the globe home and it spins again.
-- **Menu** (hamburger button, top left, always available): a popup tile grid like Krillion's and Eraly's. Play: New game (back to the start screen), Settings. More: History and About (shown, marked "soon", until milestones 7 and 9).
-- **Settings** popup: start city (Random, or Pick a city with a search box), Ring size and Number of rings sliders, Population measure, Mode (Density shown disabled), and square toggle switches for Suggestions, Hints (soon) and Subdivisions. Changes are saved at once (`ringgame.v1.settings`); game rules apply to the next game, while Subdivisions applies straight away.
-- **In game**: a box at the top centre with "Ring k / n", the ring's distance band and guess squares; the start city with its city and metro population on one line (active one highlighted); the guess box; the last guess's outcome ("Not in this ring: Paris is 244 km outside", "Bristol is in the ring, but not the biggest", "Reading is right!"); and a **Skip** button that gives up on the ring (it counts as missed, marked skipped, and the answer is revealed). The guesses themselves show as markers on the globe. Guessing the start city (or a city in its metro) and repeated guesses are ignored with a note.
-- **Reveal** popup (bottom centre, so the ring stays visible) when a ring ends: solved in N guesses, "Missed: it was X" or "Skipped: it was X", the top 5 with the player's guesses marked, then Next ring (or See summary on the last ring). An empty ring shows "No cities in this ring" for `EMPTY_RING_ADVANCE_MS` and moves on by itself.
-- **Summary** popup: rings solved, each ring's answer, population, result and hints used, with Play again (same settings, new seed) and Main menu. Saving to history comes in milestone 7.
+- **Start screen**: the title (pixel display font, pale mint with a slight 1 px green/blue split, kept subtle so it stays readable), a tagline, a big Start game button and a one-line summary of the current settings (settings live in the menu). The globe rests low on the screen like a horizon (`--globe-rest-offset`, a share of the screen height), a little larger than the whole-Earth view (`HOME_ZOOM`). The renderer moves the globe inside its canvas rather than moving the canvas, so the map always fills the screen and no canvas edge shows while it rises or sinks, even when zoomed in. It turns slowly (`IDLE_SPIN_DEG_PER_SEC`) from the moment the page opens, even while the city data is still loading ("Loading cities…" shows over it); it can't be dragged or zoomed there. Starting a game plays a sequence (timings in `config.ts`): the title and tagline lift away and the button and summary drop away (`START_EXIT_MS`), the globe rises to the centre (`GLOBE_RISE_MS`; the start screen is marked as leaving before the first paint, so it never blinks out for a frame), then the camera flies to the start city, always taking `FLY_START_MS` however near or far the city is, and the in-game box slides down from the top (`HUD_ENTER_MS`). UI animations use smooth easing curves (`--ease-out`, `--ease-in`); stepped easing looked like dropped frames at these sizes. Leaving a game flies the globe home while it sinks back to the horizon, and it spins again.
+- **Menu** (hamburger button, top left, always available): a popup tile grid like Krillion's and Eraly's. Play: New game (back to the start screen), Settings. More: History (from milestone 7) and About (shown, marked "soon", until milestone 9).
+- **Settings** popup: start city (Random, or Pick a city with a search box), Ring size and Number of rings sliders, Population measure, Mode (Density shown disabled), and square toggle switches for Suggestions, Hints and Subdivisions. Changes are saved at once (`ringgame.v1.settings`); game rules apply to the next game, while Subdivisions applies straight away.
+- **In game**: a box at the top centre with "Ring k / n", the ring's distance band and guess squares; the start city with its city and metro population on one line (active one highlighted); the guess box; the last guess's outcome ("Not in this ring: Paris is 244 km outside", "Bristol is in the ring, but not the biggest", "Reading is right!"); and a **Skip** button (outline turns red on hover; same height as the hint button beside it) that gives up on the ring. When a ring ends only the guess box goes; Hint and Skip stay, greyed out, so the box keeps its spacing (it counts as missed, marked skipped, and the answer is revealed). The guesses themselves show as markers on the globe. Guessing the start city (or a city in its metro) and repeated guesses are ignored with a note.
+- **Reveal** popup (bottom centre, so the ring stays visible) when a ring ends: solved in N guesses, "Missed: it was X" or "Skipped: it was X", the top 5 with the player's guesses coloured (the city name green for the right guess, red for a wrong one; the place and any "…" stay dim; no squares), then Next ring (or See summary on the last ring). An empty ring shows "No cities in this ring" for `EMPTY_RING_ADVANCE_MS` and moves on by itself.
+- **Summary** popup: rings solved, each ring's answer, population, result and hints used, with Play again (same settings, new seed), Main menu and History. The game is saved to history when it finishes (from milestone 7).
 - Place names: cards and headers show "City, Country". Pick-lists (start-city search, picker, suggestions) add the state or province only when another city shares the name and it differs from the country ("Dhaka Division, Bangladesh" vs "Bihar, India"). Population lines read "City" and "Metro".
 - The info card follows the mouse on desktop; on phones a tap on a marker pins it and a tap elsewhere closes it.
 
@@ -93,13 +93,15 @@ The game is called **GeoRing** on screen (a working title). The globe always fil
 
 Hints unlock in a fixed order, each usable once per ring. They do not cost guesses (there is no scoring yet), but hint use is recorded in history.
 
-1. **Country:** the answer's country is outlined and tinted, and its name is shown.
-2. **Area circle:** a circle that contains the answer is drawn. Its centre is offset from the answer in a random direction by up to half its radius, so the answer is never simply in the middle. Its radius starts at 25% of the ring width and shrinks (×0.8 per step) until it holds at most 5 eligible cities, with a minimum of 10 km. Dense regions therefore get a tighter circle.
-3. **First letter:** shows "Starts with T", using the first letter of the city's display name.
+1. **Country:** the answer's country is outlined and tinted on the globe.
+2. **Area circle:** a circle that contains the answer is drawn. Its diameter is 60% of the ring width (a 600 km circle for 1,000 km rings; `HINT_AREA_RADIUS_FRACTION` = 0.3). Its centre is offset from the answer in a random direction by a random share of the radius up to 80% (`HINT_AREA_MAX_OFFSET_FRACTION`, spread evenly over the disc), so the answer can be anywhere inside it, not just in the middle. The circle must also lie mostly inside the ring (at least 70% of its area, `HINT_AREA_MIN_IN_RING`) and over land (at least 50%, `HINT_AREA_MIN_LAND`, from the land grid in `land.json`). Up to `HINT_AREA_TRIES` (40) seeded placements are each measured at `HINT_AREA_SAMPLES` (64) points spread evenly over the circle; the first that meets both wins, otherwise the one that comes closest (a small island such as Honolulu can't reach 50% land). When it appears, the camera glides to centre it at the same zoom (`HINT_PAN_MS`). (An earlier version shrank the circle until it held 5 cities; in dense regions that made it too small to be useful.)
+3. **Dot and first letter:** the answer's dot appears on the globe in `--hint`, labelled with only the first letter of its display name and four stars ("N****" for New York; always four, so they don't give away the name's length). It fades in, has no info card, and is replaced by the answer's own marker when the ring ends.
+
+How they appear (from milestone 6): a hint button in the in-game box (a pixel lightbulb and the number left, in lightbulb yellow `--bulb`) gives the next one. Hints show only on the globe (no text line in the box). On the globe the country is tinted and outlined in `--hint` under the rings (drawn from the current detail level's country shapes, matched by `cc`), and the area circle is a dashed `--hint` circle above the rings. Both fade in over `HINT_FADE_MS`, and fade out the same way when the next ring starts (or the game ends). With the Hints setting off, the button is hidden and `useHint` does nothing. Checked near the pole (Murmansk: all of Russia, which crosses 180°), across the date line (Suva: Fiji) and in a dense region (Delhi).
 
 ### End of game
 
-A summary screen shows each ring's answer, whether it was solved (and in how many guesses) or missed, and the hints used. The game is saved to history. Buttons: Play again with the same settings, New game, and History.
+A summary screen shows each ring's answer, whether it was solved (and in how many guesses), missed or skipped, and the hints used. The game is saved to history as it finishes. Buttons: Play again (same settings, new seed), Main menu, and History (on phones Play again takes its own row).
 
 ## Data
 
@@ -123,6 +125,7 @@ City data comes from GeoNames (city-proper populations), map shapes come from Na
 5. Flag well-known cities: population ≥ 500,000, or feature code `PPLC` (national capital).
 6. Write `public/data/cities.json` and `public/data/countries.json` (country code → display name + aliases, such as Turkey/Türkiye).
 7. `pipeline/build_geo.py` converts the Natural Earth layers to quantized TopoJSON with [mapshaper](https://github.com/mbloch/mapshaper) (an npm dev dependency): `world-110m.json` (land, countries) and `world-50m.json` (land, countries, lakes) in `public/data/geo/`. Countries keep `cc` (from `ISO_A2_EH`) and `name`. It also writes `subdivisions.json` (0.8 MB): lines between first-level subdivisions of the same country (states, provinces) from Natural Earth's 1:10m admin-1 layer, simplified 6%, loaded only when the Subdivisions setting is on. `npm run data` runs both scripts.
+7b. `pipeline/build_land.py` rasterises the 1:50m land minus lakes onto a 0.25° grid (a cell is land when its centre is) and writes `public/data/land.json` (173 kB; bits packed 8 per byte, base64), which the area hint uses to stay over land. `npm run data` runs it after the other two.
 8. Join cities to GHSL urban centres (`pipeline/metros.py`): a city is in a metro if its point lies inside the centre's outline. Cities of 100,000+ within 5 km of an outline are snapped to it (GeoNames points are sometimes just outside). Each metro's main city is its most populous member, unless the GHSL name matches a member with at least half that population ("Guangzhou" over slightly larger Shenzhen), or `overrides.csv` sets `metroMain` (Islamabad, Kuwait City). A metro's population is the GHSL 2025 figure, but never less than its main city's (GHSL undercounts some Chinese cities, such as Chengdu at 5.6M against 13.6M census urban). Write `public/data/metros.json`.
 9. Print a sanity report: total city count, the 25 most populous cities, every city above 10 million, and the ring answers for a few test start cities (New York, London, Tokyo, Lagos, Chongqing) in both measures, plus a metro report: the top metros, big cities outside every metro, and cities whose own figure is larger than their metro's (likely district totals).
 
@@ -201,7 +204,7 @@ The globe is drawn by hand with [d3-geo](https://d3js.org/d3-geo) (orthographic 
 - A drag released while still moving keeps spinning and slows down (momentum, `INERTIA` in `config.ts`). A drag that stopped before release doesn't. Speed is in screen pixels, so it covers fewer degrees when zoomed in.
 - Trackpad two-finger swipes pan in both directions (sideways spins, up/down tilts); macOS supplies their momentum. Pinch (ctrl+wheel) and mouse wheels zoom toward the pointer; double-click zooms in. Swipe vs mouse wheel is decided once per burst of wheel events (`WHEEL` in `config.ts`): wheels that report lines, or large whole-number steps with no sideways part, count as a mouse.
 - Zoom ranges from the whole Earth down to about a 100 km wide view.
-- Smooth camera moves: fly to the start city at game start, then zoom out to fit each new ring with its outer edge at about 50% of the shorter screen side (`RING_FIT_FRACTION`).
+- Smooth camera moves: fly to the start city at game start, then zoom out to fit each new ring with its outer edge at about 50% of the shorter screen side (`RING_FIT_FRACTION`). On a long hop the camera pulls back mid-flight until both ends fit in 75% of the shorter side (`FLY_PULLBACK_FIT_FRACTION`), a gentle zoom-out rather than a big one.
 - Works with mouse and touch.
 
 ### Layers (bottom to top)
@@ -289,7 +292,8 @@ Green, red and yellow are kept only for guess results, so the ring uses the cyan
 
 ### Components
 
-- Buttons and tiles: square corners, 2 px `--border` outline, `--surface` fill. The selected state switches to an `--accent` outline and text. Same look as Krillion's menu grid.
+- Popups taller than the screen scroll with a thin scrollbar in the theme's colours (`--border` thumb, no track).
+- Buttons and tiles: square corners, a single 2 px `--border` outline, `--surface` fill, and small uppercase body text with wide letter spacing (like the menu tiles). Hover, keyboard focus and the selected state switch to an `--accent` outline and text; focus never adds a second ring. No popup button is pre-highlighted (the summary's two buttons look alike until hovered). The start screen's big Start game button keeps its pixel display font. Popup titles (Menu, Settings, Game over) use the same slight 1 px colour split as the start-screen title.
 - Title: pixel font with a subtle split (two offset text shadows, green and blue) and a soft green glow. Popup titles use the same split.
 - Scanline overlay over the whole page at about 4% opacity. The pixel-globe option sits on top of the same idea.
 - Guess input: full-width monospace field with a blinking block cursor. The dropdown (when on) is styled as a bordered panel list.
@@ -343,6 +347,7 @@ ring-city-game/
 ├── public/data/              pipeline output (committed)
 │   ├── cities.json
 │   ├── countries.json
+│   ├── land.json             0.25° land/water grid (area hint)
 │   └── geo/                  TopoJSON at 110m / 50m
 ├── src/
 │   ├── config.ts             every tunable number
@@ -350,6 +355,7 @@ ring-city-game/
 │   │   ├── types.ts
 │   │   ├── data.ts           index the data; "units" (city, or metro in Metro mode)
 │   │   ├── geo.ts            haversine, ring membership
+│   │   ├── land.ts           land or water at a point (land.json)
 │   │   ├── rings.ts          ring list + answers from settings
 │   │   ├── game.ts           game state + actions
 │   │   ├── matching.ts       normalize, aliases, fuzzy
@@ -388,14 +394,16 @@ Everything is saved in the browser's local storage, so there are no accounts and
 One record per finished game (abandoned games are not saved):
 
 - Date and time, seed, start city id, mode, ring width, number of rings, guesses per ring.
-- Per ring: inner and outer radius, answer city id, guesses in order (city ids), solved / missed / empty, hints used.
+- Per ring: inner and outer radius, answer city id, guesses in order (city ids), solved / missed / empty, guesses used (outside-the-ring guesses don't count), whether it was skipped, hints used.
+- The summary popup and a game opened from History are drawn from this same record, so they look identical.
 
 ### History screen
 
-- A list of past games, newest first: date, start city, ring width × rings, and a row of small squares per ring (green solved, red missed, grey empty).
-- Tapping a game opens its summary and offers "Replay this game", which reuses the seed and settings.
-- Simple totals at the top: games played and rings solved %.
-- A "Clear history" button with a confirmation step.
+- Opened from the menu's History tile or the summary's History button.
+- A list of past games, newest first: start city, rings × ring width (and "metro" in Metro mode), date and time, and a row of small squares per ring (green solved, red missed, grey empty).
+- Tapping a game opens its summary and offers "Replay this game", which reuses the seed and settings (so the same start city and rings) without changing the settings remembered for new games, and Back.
+- Simple totals at the top: rings solved % and games played. With no games: "No games yet. Finished games show up here."
+- A "Clear history" button with a confirmation step ("Delete all N saved games? This can't be undone."); the confirming button turns red on hover.
 
 ### Storage rules
 

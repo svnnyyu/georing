@@ -11,18 +11,12 @@
 .globe-stage {
   position: absolute;
   inset: 0;
-  transition: transform var(--globe-rise-ms) var(--ease-out);
-  will-change: transform;
 }
 
-/* Start screen: the globe rests low, its top showing like a horizon. */
+/* Start screen: the globe rests low, its top showing like a horizon (the renderer moves it
+   inside the canvas, which always fills the screen). It just spins; it can't be dragged. */
 .globe-stage.down {
-  transform: translateY(var(--globe-rest-offset));
-  pointer-events: none; /* the resting globe just spins; it can't be dragged or zoomed */
-}
-
-.globe-stage.up {
-  transform: none;
+  pointer-events: none;
 }
 
 /* Layer for info cards, matching the globe's area (pointer events pass through). */
@@ -87,6 +81,11 @@
   pointer-events: auto;
 }
 
+/* Leaving: no clicks, and no restyling (a dimmed button would flash before it moves away). */
+.start-screen.leaving > * {
+  pointer-events: none;
+}
+
 .hero-title {
   font-family: var(--font-display);
   font-weight: 700;
@@ -94,10 +93,11 @@
   letter-spacing: 0.06em;
   margin: 0;
   color: var(--title);
+  /* A slight colour split, just enough to hint at a glitch while the letters stay crisp. */
   text-shadow:
-    -3px 0 var(--glitch-a),
-    3px 0 var(--glitch-b),
-    0 0 24px color-mix(in srgb, var(--glitch-a) 30%, transparent);
+    -1px 0 color-mix(in srgb, var(--glitch-a) 70%, transparent),
+    1px 0 color-mix(in srgb, var(--glitch-b) 70%, transparent),
+    0 0 24px color-mix(in srgb, var(--glitch-a) 25%, transparent);
 }
 
 /* Start screen enters with a short fade, and leaves when a game starts: the title and
@@ -137,11 +137,12 @@
   }
 }
 
-/* RGB-split glitch: offset pink and cyan copies behind the text. */
+/* Colour-split glitch for the popup titles (Menu, Settings, Game over): the same slight
+   1 px split as the start-screen title, so the letters stay crisp. */
 .glitch {
   text-shadow:
-    -2px 0 var(--glitch-a),
-    2px 0 var(--glitch-b);
+    -1px 0 color-mix(in srgb, var(--glitch-a) 70%, transparent),
+    1px 0 color-mix(in srgb, var(--glitch-b) 70%, transparent);
 }
 
 .tagline {
@@ -180,9 +181,38 @@
   cursor: pointer;
 }
 
-.text-btn:hover {
+.text-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  height: var(--small-btn-height);
+  line-height: 1;
+}
+
+.text-btn .icon {
+  width: 12px;
+  height: 12px;
+}
+
+.text-btn:hover:not(:disabled) {
   color: var(--accent);
   border-color: var(--accent);
+}
+
+/* The hint button is a warm yellow (a lightbulb), brighter on hover. */
+.text-btn.hint-btn {
+  color: var(--bulb);
+  border-color: color-mix(in srgb, var(--bulb) 45%, transparent);
+}
+
+.text-btn.hint-btn:hover:not(:disabled) {
+  color: var(--bulb);
+  border-color: var(--bulb);
+}
+
+.text-btn.skip:hover:not(:disabled) {
+  color: var(--wrong);
+  border-color: var(--wrong);
 }
 
 /* --- In-game box, top centre --- */
@@ -218,6 +248,15 @@
 
 .hud-top .squares {
   margin-left: auto;
+  align-self: center;
+}
+
+/* Hint and Skip: side by side, centred on each other. */
+.hud-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  align-self: center;
 }
 
 .hud-start {
@@ -286,12 +325,32 @@
 }
 
 .dialog {
+  /* A thin scrollbar in the theme's colours when the popup is taller than the screen. */
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
   width: min(var(--dialog-width), 100%);
   max-height: calc(100vh - 2 * var(--space-4));
   overflow-y: auto;
   padding: var(--space-6);
   background: var(--surface);
   border: var(--border-width) solid var(--border);
+}
+
+/* The same for Safari, which uses its own scrollbar styling. */
+.dialog::-webkit-scrollbar {
+  width: var(--scrollbar-size);
+}
+
+.dialog::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.dialog::-webkit-scrollbar-thumb {
+  background: var(--border);
+}
+
+.dialog::-webkit-scrollbar-thumb:hover {
+  background: var(--text-dim);
 }
 
 .dialog-head {
@@ -328,6 +387,49 @@
   gap: var(--space-2);
 }
 
+.dialog-actions.three {
+  grid-template-columns: repeat(3, 1fr);
+}
+
+/* A destructive action (Clear history): red on hover or focus. */
+.btn.danger:hover:not(:disabled),
+.btn.danger:focus-visible {
+  color: var(--wrong);
+  border-color: var(--wrong);
+}
+
+.confirm {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+/* History: each past game is a row you can open. */
+.history-row {
+  width: 100%;
+  font: inherit;
+  font-size: var(--text-sm);
+  text-align: left;
+  color: inherit;
+  background: none;
+  border: none;
+  border-bottom: 1px dashed var(--border);
+  cursor: pointer;
+}
+
+.history-row:hover .city,
+.history-row:focus-visible .city {
+  color: var(--accent);
+}
+
+.history-row:focus-visible {
+  outline: none;
+}
+
+.history-row .squares {
+  flex: none;
+}
+
 .tile-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -353,9 +455,10 @@
 }
 
 .menu-tile:hover:not(:disabled),
-.menu-tile.selected {
+.menu-tile:focus-visible {
   border-color: var(--accent);
   color: var(--accent);
+  outline: none;
 }
 
 .menu-tile:disabled {
@@ -391,6 +494,13 @@
   }
   .dialog {
     padding: var(--space-4);
+  }
+  /* Three buttons don't fit side by side: the first gets its own row. */
+  .dialog-actions.three {
+    grid-template-columns: 1fr 1fr;
+  }
+  .dialog-actions.three > :first-child {
+    grid-column: 1 / -1;
   }
 }
 
@@ -428,10 +538,14 @@
 }
 
 /* --- Buttons and tiles --- */
+/* Every button and tile shares one look, like the menu tiles: small uppercase body text with
+   wide letter spacing, a single 2 px outline, accent on hover or keyboard focus. */
 .btn,
 .tile {
   font: inherit;
-  font-size: var(--text-md);
+  font-size: var(--text-sm);
+  letter-spacing: var(--label-letter-spacing);
+  text-transform: uppercase;
   color: var(--text);
   background: var(--surface);
   border: var(--border-width) solid var(--border);
@@ -441,7 +555,9 @@
 }
 
 .btn:hover:not(:disabled),
+.btn:focus-visible,
 .tile:hover:not(:disabled),
+.tile:focus-visible,
 .tile.selected {
   border-color: var(--accent);
   color: var(--accent);
@@ -454,15 +570,23 @@
   opacity: 0.6;
 }
 
+/* Popup actions (Play again, Next ring, Done): same text size as the settings tiles; like
+   every button, only the one under the pointer (or keyboard focus) is highlighted. */
 .btn.primary {
-  border-color: var(--accent);
-  color: var(--accent);
-  font-size: var(--text-lg);
   padding: var(--space-3);
 }
 
+/* The Start button is focused on load (Enter starts a game) but only lights up on hover. */
+.btn.hero:focus-visible:not(:hover) {
+  color: var(--text);
+}
+
+/* Buttons and tiles show focus with their own outline (above), not a second ring around it. */
 .btn:focus-visible,
-.tile:focus-visible,
+.tile:focus-visible {
+  outline: none;
+}
+
 .input:focus-visible,
 input[type='range']:focus-visible {
   outline: var(--border-width) solid var(--accent);
@@ -657,6 +781,11 @@ input[type='range']:focus-visible {
   color: var(--outside);
 }
 
+.text-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
 .message.info {
   color: var(--text-dim);
 }
@@ -706,6 +835,7 @@ input[type='range']:focus-visible {
 }
 
 .log-row .name {
+  color: var(--text-dim);
   flex: 1;
   min-width: 0;
   overflow: hidden;
@@ -718,8 +848,16 @@ input[type='range']:focus-visible {
   white-space: nowrap;
 }
 
-.log-row.answer .name {
+.log-row .city {
+  color: var(--text);
+}
+
+.log-row .city.text-correct {
   color: var(--correct);
+}
+
+.log-row .city.text-wrong {
+  color: var(--wrong);
 }
 
 /* --- Info card on the globe --- */
@@ -739,6 +877,16 @@ input[type='range']:focus-visible {
 .info-card .name {
   font-size: var(--text-md);
   color: var(--text);
+}
+
+/* The country (and region) sits on the same line, right after the city name. */
+.info-card .name {
+  white-space: nowrap; /* the card widens to fit the line rather than breaking it */
+}
+
+.info-card .place {
+  font-size: var(--text-sm);
+  color: var(--text-dim);
 }
 
 .info-card .pop {
@@ -783,6 +931,11 @@ input[type='range']:focus-visible {
   background: var(--surface);
   border: var(--border-width) solid var(--wrong);
   color: var(--wrong);
+}
+
+/* Settings: the picked start city's name, just above its populations. */
+.picked-city {
+  margin: var(--space-3) 0 var(--space-2);
 }
 
 .spaced {
@@ -841,4 +994,14 @@ input[type='range']:focus-visible {
 
 .toggle:disabled {
   opacity: 0.5;
+}
+
+/* Summary: "6 of 8 rings solved", with no extra space around it. */
+.score {
+  margin: 0;
+  line-height: 1.2;
+}
+
+.score-number {
+  font-size: var(--text-xl);
 }

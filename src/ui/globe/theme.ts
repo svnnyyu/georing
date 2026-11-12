@@ -17,6 +17,10 @@ export interface GlobeTheme {
   ringWidth: number;
   ringPastOpacity: number;
   accent: string;
+  hint: string;
+  hintFillOpacity: number;
+  hintWidth: number;
+  hintDash: [number, number];
   correct: string;
   wrong: string;
   outside: string;
@@ -24,6 +28,8 @@ export interface GlobeTheme {
   markerOutline: string;
   markerSize: number;
   markerFadedOpacity: number;
+  /** Start screen: how far the globe's centre rests below the screen's centre (share of height). */
+  globeRestOffset: number;
   /** CSS font shorthand for marker labels. */
   labelFont: string;
 }
@@ -51,6 +57,11 @@ export function readGlobeTheme(el: Element = document.documentElement): GlobeThe
     ringWidth: num('--ring-width'),
     ringPastOpacity: num('--ring-past-opacity', 0.35),
     accent: color('--accent'),
+    globeRestOffset: num('--globe-rest-offset', 0.6),
+    hint: color('--hint'),
+    hintFillOpacity: num('--hint-fill-opacity', 0.18),
+    hintWidth: num('--hint-width', 1.5),
+    hintDash: [num('--hint-dash', 6), num('--hint-gap', 4)],
     correct: color('--correct'),
     wrong: color('--wrong'),
     outside: color('--outside'),
