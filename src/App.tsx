@@ -105,6 +105,13 @@ function Game({ controls }: { controls: GlobeControls }) {
   const [card, setCard] = useState<CardAnchor | null>(null);
   const [pinned, setPinned] = useState(false);
   const [dialog, setDialog] = useState<Dialog>(null);
+  // Settings, History and About opened from the menu go back to the menu when closed (×,
+  // Escape, a click outside, Done); History opened from the summary goes back to it.
+  const [fromMenu, setFromMenu] = useState(false);
+  const openFromMenu = (d: Dialog) => {
+    setFromMenu(true);
+    setDialog(d);
+  };
   // The summary can be closed to look around the globe; a See summary button brings it back.
   const [summaryOpen, setSummaryOpen] = useState(true);
 
@@ -218,7 +225,11 @@ function Game({ controls }: { controls: GlobeControls }) {
   };
 
   const bounds = { width: area.current?.clientWidth ?? 0, height: area.current?.clientHeight ?? 0 };
-  const close = () => setDialog(null);
+  const close = () => {
+    setDialog(null);
+    setFromMenu(false);
+  };
+  const back = () => (fromMenu ? setDialog('menu') : close());
 
   return (
     <>
@@ -236,7 +247,14 @@ function Game({ controls }: { controls: GlobeControls }) {
       {game && game.phase !== 'finished' && <Hud game={game} />}
       {game && game.phase === 'ringOver' && <RevealPanel game={game} onNext={next} />}
       {game && game.phase === 'finished' && summaryOpen && (
-        <SummaryDialog game={game} onHistory={() => setDialog('history')} onClose={() => setSummaryOpen(false)} />
+        <SummaryDialog
+          game={game}
+          onHistory={() => {
+            setFromMenu(false);
+            setDialog('history');
+          }}
+          onClose={() => setSummaryOpen(false)}
+        />
       )}
       {game && game.phase === 'finished' && !summaryOpen && (
         <section className="popup reveal">
@@ -253,14 +271,14 @@ function Game({ controls }: { controls: GlobeControls }) {
             quit();
             close();
           }}
-          onSettings={() => setDialog('settings')}
-          onHistory={() => setDialog('history')}
-          onAbout={() => setDialog('about')}
+          onSettings={() => openFromMenu('settings')}
+          onHistory={() => openFromMenu('history')}
+          onAbout={() => openFromMenu('about')}
         />
       )}
-      {dialog === 'about' && <AboutDialog onClose={close} />}
-      {dialog === 'history' && <HistoryDialog onClose={close} />}
-      {dialog === 'settings' && <SettingsDialog onClose={close} inGame={game !== null} />}
+      {dialog === 'about' && <AboutDialog onClose={back} />}
+      {dialog === 'history' && <HistoryDialog onClose={back} onReplay={close} />}
+      {dialog === 'settings' && <SettingsDialog onClose={back} inGame={game !== null} />}
     </>
   );
 }

@@ -17,14 +17,23 @@ function playedAt(record: GameRecord): string {
   return Number.isNaN(d.getTime()) ? '' : when.format(d);
 }
 
-export function HistoryDialog({ onClose }: { onClose: () => void }) {
+export function HistoryDialog({
+  onClose,
+  onReplay,
+}: {
+  /** Back to where it was opened from (the menu or the summary). */
+  onClose: () => void;
+  /** A game was replayed: close every popup. */
+  onReplay: () => void;
+}) {
   const { data, history, replay, clearHistory } = useGame();
   const [open, setOpen] = useState<GameRecord | null>(null);
   const [confirming, setConfirming] = useState(false);
 
   if (open) {
     return (
-      <Modal kicker={`History · ${playedAt(open)}`} title="Past game" onClose={onClose}>
+      // Closing a past game steps back to the list, like its Back button.
+      <Modal kicker={`History · ${playedAt(open)}`} title="Past game" onClose={() => setOpen(null)}>
         <GameSummary record={open} />
         <div className="dialog-actions">
           <button
@@ -32,7 +41,7 @@ export function HistoryDialog({ onClose }: { onClose: () => void }) {
             className="btn primary"
             onClick={() => {
               replay(open);
-              onClose();
+              onReplay();
             }}
           >
             Replay this game
