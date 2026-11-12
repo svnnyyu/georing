@@ -6,6 +6,7 @@ import {
   CONTINENT_BALANCE_EXPONENT,
   FAR_SIDE_KM,
   GUESSES_PER_RING,
+  HINT_AREA_COUNTRIES,
   HINTS_PER_RING,
   RING_COUNT,
   RING_WIDTH_KM,
@@ -13,7 +14,7 @@ import {
 import { cityOrThrow, unitIdOf, type GameData } from './data.ts';
 import { buildCountryRings, countryOutsideKm, pointInRing } from './countries.ts';
 import { distanceKm, distanceOutsideKm, sphereCentre, type LatLon } from './geo.ts';
-import { areaCircle, countryFocus, firstLetter, nextHint } from './hints.ts';
+import { areaCircle, CITY_AREA_CIRCLE, countryFocus, firstLetter, nextHint } from './hints.ts';
 import { createRng, deriveSeed, pick, weightedIndex } from './random.ts';
 import { buildRings } from './rings.ts';
 import type { GameState, Guess, HintState, Ring, RingState, RingStatus, Settings } from './types.ts';
@@ -278,7 +279,9 @@ export function useHint(data: GameData, state: GameState): GameState {
       // One random stream per ring and target (the biggest keeps the original stream).
       const rank = ring.unitIds.indexOf(unitId);
       const seed = rank === 0 ? deriveSeed(state.seed, SALT_HINT, ring.index) : deriveSeed(state.seed, SALT_HINT, ring.index, rank);
-      return { unitId, circle: areaCircle(data, ring, at(unitId), start, createRng(seed)) };
+      // Countries mode: a much larger circle, spanning several countries.
+      const size = countries ? HINT_AREA_COUNTRIES : CITY_AREA_CIRCLE;
+      return { unitId, circle: areaCircle(data, ring, at(unitId), start, createRng(seed), size) };
     });
   }
   if (kind === 'letter') {

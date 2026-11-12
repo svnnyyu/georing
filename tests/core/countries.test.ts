@@ -118,6 +118,8 @@ describe('a Countries game', () => {
     expect(h.areas!.map((a) => a.unitId)).toEqual([id('XX'), id('BB')]);
     expect(h.letters!.map((l) => l.letter)).toEqual(['H', 'B']);
     expect(h.letters![1]!.at.lon).toBeCloseTo(3.5, 1); // Bland's people in the ring
+    // Countries mode's circles are much larger than the cities' (1.5 × the ring width across).
+    expect(h.areas![0]!.circle.radiusKm).toBeCloseTo(0.75 * 500);
   });
 
   it("records the answer's people inside the ring", () => {

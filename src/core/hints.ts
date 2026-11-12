@@ -67,8 +67,25 @@ export function countryFocus(data: GameData, ring: Ring, cc: string): LatLon | n
  *  disc), so the answer can be anywhere inside, not just in the middle. Placements are tried
  *  until one lies mostly inside the ring and over land (HINT_AREA_MIN_IN_RING,
  *  HINT_AREA_MIN_LAND); if none does, the one that comes closest is used. */
-export function areaCircle(data: GameData, ring: Ring, answer: LatLon, start: LatLon, rng: Rng): AreaCircle {
-  const radiusKm = HINT_AREA_RADIUS_FRACTION * (ring.outerKm - ring.innerKm);
+export interface AreaCircleSize {
+  /** Radius as a share of the ring width. */
+  radiusFraction: number;
+  /** Share of the circle that must lie inside the ring. */
+  minInRing: number;
+}
+
+/** Cities mode's circle; Countries mode passes HINT_AREA_COUNTRIES. */
+export const CITY_AREA_CIRCLE: AreaCircleSize = { radiusFraction: HINT_AREA_RADIUS_FRACTION, minInRing: HINT_AREA_MIN_IN_RING };
+
+export function areaCircle(
+  data: GameData,
+  ring: Ring,
+  answer: LatLon,
+  start: LatLon,
+  rng: Rng,
+  size: AreaCircleSize = CITY_AREA_CIRCLE,
+): AreaCircle {
+  const radiusKm = size.radiusFraction * (ring.outerKm - ring.innerKm);
   let best: AreaCircle | null = null;
   let bestShort = Infinity;
   for (let t = 0; t < HINT_AREA_TRIES; t++) {
@@ -77,7 +94,7 @@ export function areaCircle(data: GameData, ring: Ring, answer: LatLon, start: La
     const centre = destination(answer, bearing, offsetKm);
     const circle = { lat: centre.lat, lon: centre.lon, radiusKm };
     const s = circleShares(data, circle, ring, start);
-    const short = Math.max(0, HINT_AREA_MIN_IN_RING - s.inRing) + Math.max(0, HINT_AREA_MIN_LAND - s.land);
+    const short = Math.max(0, size.minInRing - s.inRing) + Math.max(0, HINT_AREA_MIN_LAND - s.land);
     if (short === 0) return circle;
     if (short < bestShort) {
       best = circle;

@@ -34,15 +34,18 @@ export const REVEAL_TOP_N = 5; // cities listed in the reveal panel
 
 // --- Hints ---
 export const HINTS_PER_RING = 3;
-// Area hint: a circle whose diameter is 60% of the ring width, placed so the answer is
+// Area hint: a circle whose diameter is 0.75 × the ring width, placed so the answer is
 // somewhere inside, up to this share of the radius from the centre.
-export const HINT_AREA_RADIUS_FRACTION = 0.3; // of ring width
+export const HINT_AREA_RADIUS_FRACTION = 0.375; // of ring width
 export const HINT_AREA_MAX_OFFSET_FRACTION = 0.8; // of circle radius
 // It is also placed so most of it lies inside the ring and over land: up to TRIES random
 // placements are measured at SAMPLES points spread evenly over the circle, and the first that
 // meets both shares wins (else the closest one, e.g. for a small island).
 export const HINT_AREA_MIN_IN_RING = 0.7; // share of the circle's area inside the ring
 export const HINT_AREA_MIN_LAND = 0.5; // share of the circle's area over land
+// Countries mode: a much larger circle (1.5 × the ring width across), so it spans several
+// countries rather than just the answer; it can't then sit 70% inside the ring, so less is asked.
+export const HINT_AREA_COUNTRIES = { radiusFraction: 0.75, minInRing: 0.5 } as const;
 export const HINT_AREA_TRIES = 40;
 export const HINT_AREA_SAMPLES = 64;
 export const HINT_FADE_MS = 600; // hints on the globe fade in and out
