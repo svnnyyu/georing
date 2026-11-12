@@ -24,7 +24,7 @@ export function InfoCard({ game, anchor, bounds }: { game: GameState; anchor: Ca
     return (
       <Card anchor={anchor} bounds={bounds}>
         <span className="name">
-          {c.name} <span className="place">{placeOf(data, c.id, { regions })} · start city</span>
+          {c.name} <span className="place">{placeOf(data, c.id, { regions })}</span>
         </span>
         <PopulationLines cityPop={c.pop} metro={metroOf(data, c.id)} measure={game.settings.measure} />
       </Card>

@@ -21,7 +21,7 @@ export function StartScreen({ leaving }: { leaving: boolean }) {
     <main className={leaving ? 'start-screen leaving' : 'start-screen'} aria-hidden={leaving}>
       <h1 className="hero-title">GeoRing</h1>
       <p className="tagline">Find the most populous city in each ring</p>
-      <button type="button" className="btn hero" onClick={() => !leaving && start()} autoFocus>
+      <button type="button" className="btn hero" data-sound="start" onClick={() => !leaving && start()} autoFocus>
         Start game
       </button>
       <p className="start-meta dim">{summary.join(' · ')}</p>

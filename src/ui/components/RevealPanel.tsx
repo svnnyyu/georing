@@ -18,17 +18,17 @@ export function RevealPanel({ game, onNext }: { game: GameState; onNext: () => v
 
   const toFind = targetsOf(ring, game.settings).length;
   const found = foundCount(rs);
+  // Short, and shown in uppercase: "Solved · 2 guesses", "Missed · Lahore", "Skipped · 1 of 3 found".
   let headline: React.ReactNode;
   if (rs.status === 'empty') headline = <span className="dim">No cities in this ring</span>;
   else if (rs.status === 'solved') {
     const n = guessesUsed(rs);
-    const guesses = `${n} ${n === 1 ? 'guess' : 'guesses'}`;
-    headline = <span className="text-correct">{toFind === 1 ? `Solved in ${guesses}` : `Found all ${toFind} in ${guesses}`}</span>;
+    headline = <span className="text-correct">Solved · {n} {n === 1 ? 'guess' : 'guesses'}</span>;
   } else {
     const how = rs.skipped ? 'Skipped' : 'Missed';
     headline = (
       <span className="text-wrong">
-        {toFind === 1 ? `${how}: it was ${answer?.name}` : `${how}: found ${found} of ${toFind}`}
+        {how} · {toFind === 1 ? answer?.name : `${found} of ${toFind} found`}
       </span>
     );
   }

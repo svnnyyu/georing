@@ -96,12 +96,15 @@ export function Toggle({
   onChange,
   disabled = false,
   note,
+  soundAlways = false,
 }: {
   label: string;
   checked: boolean;
   onChange: (v: boolean) => void;
   disabled?: boolean;
   note?: string;
+  /** Play its switch sound even while sound effects are off (the Sound effects toggle). */
+  soundAlways?: boolean;
 }) {
   return (
     <label className={disabled ? 'toggle-row disabled' : 'toggle-row'}>
@@ -115,6 +118,8 @@ export function Toggle({
         aria-checked={checked}
         aria-label={label}
         className={checked ? 'toggle on' : 'toggle'}
+        data-sound={checked ? 'toggleOff' : 'toggleOn'}
+        data-sound-always={soundAlways ? '' : undefined}
         disabled={disabled}
         onClick={() => onChange(!checked)}
       >

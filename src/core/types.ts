@@ -69,6 +69,8 @@ export interface Settings {
   suggestions: boolean;
   /** Show states/provinces: their borders on the globe, and in place names. */
   subdivisions: boolean;
+  /** Sound effects for buttons and game events. */
+  sound: boolean;
   /** Offer the three hints (country, area circle, first letter) in each ring. */
   hints: boolean;
   measure: PopulationMeasure;

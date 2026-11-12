@@ -22,6 +22,7 @@ import { StartScreen } from './ui/screens/StartScreen.tsx';
 import { SummaryDialog } from './ui/screens/SummaryDialog.tsx';
 import { GameProvider, useGame } from './ui/state/GameProvider.tsx';
 import { buildOverlay, parseMarkerId } from './ui/state/overlay.ts';
+import { useGameSounds, useUiSounds } from './ui/sound/useSounds.ts';
 import './ui/ui.css';
 
 /** Animation timings from config.ts, handed to the CSS as variables. */
@@ -99,7 +100,9 @@ export default function App() {
 type Dialog = 'menu' | 'settings' | 'history' | 'about' | null;
 
 function Game({ controls }: { controls: GlobeControls }) {
-  const { data, game, next, quit, settings } = useGame();
+  const { data, game, next, quit, settings, outcome } = useGame();
+  useUiSounds(settings.sound);
+  useGameSounds(game, outcome);
   const { globe, setGlobe, markers } = controls;
   const area = useRef<HTMLDivElement>(null);
   const [card, setCard] = useState<CardAnchor | null>(null);

@@ -33,6 +33,7 @@ describe('settings', () => {
       citiesToFind: 1,
       suggestions: false,
       subdivisions: false,
+      sound: true,
       hints: true,
       measure: 'city',
       mode: 'population',

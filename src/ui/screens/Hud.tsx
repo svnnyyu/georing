@@ -1,6 +1,6 @@
 // The in-game box at the top centre of the screen: ring, misses left, Hint, Skip, the start
-// city, progress when there are several cities to find, the guess box and the last guess's
-// outcome. It slides in when a game starts.
+// city (with the progress on the same line when there are several cities to find), the guess
+// box and the last guess's outcome. It slides in when a game starts.
 
 import { useEffect, useMemo } from 'react';
 import { EMPTY_RING_ADVANCE_MS } from '../../config.ts';
@@ -8,7 +8,6 @@ import { foundCount, guessesLeft, hintsLeft as hintsLeftOf, nextTarget, targetsO
 import type { GameState } from '../../core/types.ts';
 import { GuessInput } from '../components/GuessInput.tsx';
 import { BulbIcon } from '../components/Icons.tsx';
-import { metroOf, PopulationInline } from '../components/Population.tsx';
 import { formatKm, formatKmRange, placeOf } from '../format.ts';
 import { useGame } from '../state/GameProvider.tsx';
 
@@ -80,6 +79,7 @@ export function Hud({ game }: { game: GameState }) {
             <button
               type="button"
               className="text-btn hint-btn"
+              data-sound="hint"
               onClick={hint}
               disabled={!playing || hintsLeft <= 0 || nextTarget(game) === null}
               aria-label={`Hint, ${hintsLeft} left`}
@@ -92,6 +92,7 @@ export function Hud({ game }: { game: GameState }) {
           <button
             type="button"
             className="text-btn skip"
+            data-sound="skip"
             disabled={!playing}
             onClick={skip}
             aria-label="Skip this ring"
@@ -101,17 +102,19 @@ export function Hud({ game }: { game: GameState }) {
           </button>
         </span>
       </div>
+      {/* The start city (its populations are on the globe: hover its diamond), and with
+          several cities to find, the progress on the right. */}
       <div className="hud-start small">
         <span>
-          From {start.name} <span className="dim">{placeOf(data, start.id, { regions: settings.subdivisions })}</span>
+          <span className="hud-label">From</span> <span className="start-name">{start.name}</span>{' '}
+          <span className="dim">{placeOf(data, start.id, { regions: settings.subdivisions })}</span>
         </span>
-        <PopulationInline cityPop={start.pop} metro={metroOf(data, start.id)} measure={game.settings.measure} />
+        {toFind > 1 && (
+          <span className="dim">
+            Find the top {toFind} · <span className={found > 0 ? 'text-correct' : undefined}>{found} found</span>
+          </span>
+        )}
       </div>
-      {toFind > 1 && (
-        <p className="message info">
-          Find the top {toFind} · <span className={found > 0 ? 'text-correct' : undefined}>{found} found</span>
-        </p>
-      )}
       {/* Keys are prefixed so the box (per ring) and the message (per guess) can never share one. */}
       {playing && <GuessInput key={`ring-${game.current}`} inRing={inRing} onGuess={guess} />}
       {message && (

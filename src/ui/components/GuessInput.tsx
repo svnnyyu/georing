@@ -133,7 +133,8 @@ export function GuessInput({ inRing, onGuess }: { inRing: Set<number>; onGuess: 
               </span>
             )}
           </div>
-          <button type="submit" className="btn">
+          {/* The guess's result makes the sound. */}
+          <button type="submit" className="btn" data-sound="none">
             Guess
           </button>
         </form>

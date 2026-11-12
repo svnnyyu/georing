@@ -148,3 +148,99 @@ export const STORAGE_KEYS = {
   settings: 'ringgame.v1.settings',
 } as const;
 export const HISTORY_CAP = 500;
+
+// --- Sound effects (synthesized with Web Audio, chiptune style; see src/ui/sound/sound.ts) ---
+// Each sound is a list of notes: frequency f in Hz (slide to `to` over the note, if given),
+// start `at` and length `dur` in seconds, waveform, and loudness (0-1, times SOUND_VOLUME).
+export const SOUND_VOLUME = 0.18;
+// The game-over sound is the happy one when at least this share of the cities was found.
+export const GAME_WON_SHARE = 0.5;
+export interface SoundNote {
+  f: number;
+  at: number;
+  dur: number;
+  wave: 'square' | 'triangle' | 'sine' | 'sawtooth';
+  vol: number;
+  to?: number;
+}
+// Note frequencies (Hz) used below, for readability.
+const C4 = 261.6, E4 = 329.6, G4 = 392.0, C5 = 523.3, E5 = 659.3, G5 = 784.0, A5 = 880.0, B5 = 987.8;
+const C6 = 1046.5, E6 = 1318.5, A6 = 1760.0;
+export const SOUNDS = {
+  /** Any button or tile. */
+  click: [{ f: 1200, at: 0, dur: 0.025, wave: 'square', vol: 0.25 }],
+  /** A slider moving one step: softer and lower than a click, like a detent. */
+  tick: [{ f: 640, at: 0, dur: 0.018, wave: 'triangle', vol: 0.45 }],
+  /** A toggle switched on (rising) or off (falling). */
+  toggleOn: [
+    { f: 620, at: 0, dur: 0.03, wave: 'square', vol: 0.22 },
+    { f: 930, at: 0.035, dur: 0.04, wave: 'square', vol: 0.22 },
+  ],
+  toggleOff: [
+    { f: 930, at: 0, dur: 0.03, wave: 'square', vol: 0.22 },
+    { f: 620, at: 0.035, dur: 0.04, wave: 'square', vol: 0.22 },
+  ],
+  /** Start game: a quick rising arpeggio. */
+  start: [
+    { f: C5, at: 0, dur: 0.07, wave: 'square', vol: 0.5 },
+    { f: E5, at: 0.07, dur: 0.07, wave: 'square', vol: 0.5 },
+    { f: G5, at: 0.14, dur: 0.07, wave: 'square', vol: 0.5 },
+    { f: C6, at: 0.21, dur: 0.16, wave: 'square', vol: 0.5 },
+  ],
+  /** A target found: a two-note "coin". */
+  correct: [
+    { f: B5, at: 0, dur: 0.07, wave: 'square', vol: 0.5 },
+    { f: E6, at: 0.07, dur: 0.22, wave: 'square', vol: 0.5 },
+  ],
+  /** In the ring, but not a target: a low falling buzz. */
+  wrong: [{ f: 220, to: 140, at: 0, dur: 0.22, wave: 'sawtooth', vol: 0.45 }],
+  /** Outside the ring (free): a soft two-note "nope". */
+  outside: [
+    { f: 520, at: 0, dur: 0.07, wave: 'triangle', vol: 0.6 },
+    { f: 390, at: 0.08, dur: 0.1, wave: 'triangle', vol: 0.6 },
+  ],
+  /** Already guessed, or the start city: a short blip. */
+  info: [{ f: 600, at: 0, dur: 0.05, wave: 'triangle', vol: 0.5 }],
+  /** A hint: a little sparkle. */
+  hint: [
+    { f: A5, at: 0, dur: 0.06, wave: 'triangle', vol: 0.55 },
+    { f: E6, at: 0.05, dur: 0.06, wave: 'triangle', vol: 0.5 },
+    { f: A6, at: 0.1, dur: 0.14, wave: 'triangle', vol: 0.45 },
+  ],
+  /** Skip: three falling notes. */
+  skip: [
+    { f: G4, at: 0, dur: 0.07, wave: 'square', vol: 0.4 },
+    { f: E4, at: 0.07, dur: 0.07, wave: 'square', vol: 0.4 },
+    { f: C4, at: 0.14, dur: 0.14, wave: 'square', vol: 0.4 },
+  ],
+  /** A ring solved (every target found): a short fanfare after the "coin". */
+  ringSolved: [
+    { f: C5, at: 0.28, dur: 0.08, wave: 'square', vol: 0.4 },
+    { f: E5, at: 0.36, dur: 0.08, wave: 'square', vol: 0.4 },
+    { f: G5, at: 0.44, dur: 0.08, wave: 'square', vol: 0.4 },
+    { f: C6, at: 0.52, dur: 0.2, wave: 'square', vol: 0.4 },
+  ],
+  /** A ring missed (out of guesses): a sad fall. */
+  ringMissed: [
+    { f: G4, at: 0.25, dur: 0.12, wave: 'triangle', vol: 0.6 },
+    { f: E4, at: 0.37, dur: 0.12, wave: 'triangle', vol: 0.6 },
+    { f: C4, to: 196, at: 0.49, dur: 0.3, wave: 'triangle', vol: 0.6 },
+  ],
+  /** Game over with at least half the cities found. */
+  gameWon: [
+    { f: C5, at: 0, dur: 0.1, wave: 'square', vol: 0.45 },
+    { f: E5, at: 0.1, dur: 0.1, wave: 'square', vol: 0.45 },
+    { f: G5, at: 0.2, dur: 0.1, wave: 'square', vol: 0.45 },
+    { f: C6, at: 0.3, dur: 0.1, wave: 'square', vol: 0.45 },
+    { f: G5, at: 0.4, dur: 0.1, wave: 'square', vol: 0.45 },
+    { f: C6, at: 0.5, dur: 0.35, wave: 'square', vol: 0.45 },
+  ],
+  /** Game over with fewer than half found. */
+  gameLost: [
+    { f: E5, at: 0, dur: 0.14, wave: 'triangle', vol: 0.55 },
+    { f: C5, at: 0.14, dur: 0.14, wave: 'triangle', vol: 0.55 },
+    { f: G4, at: 0.28, dur: 0.14, wave: 'triangle', vol: 0.55 },
+    { f: C4, at: 0.42, dur: 0.35, wave: 'triangle', vol: 0.55 },
+  ],
+} satisfies Record<string, SoundNote[]>;
+export type SoundName = keyof typeof SOUNDS;

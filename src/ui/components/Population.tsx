@@ -36,21 +36,3 @@ export function metroOf(data: GameData, cityId: number): { pop: number; members:
   const m = c?.metro === undefined ? undefined : data.metros.get(c.metro);
   return m ? { pop: m.pop, members: m.members } : null;
 }
-
-/** One line: "City 8,961,989 · Metro 10,408,332", with the active measure highlighted. */
-export function PopulationInline({
-  cityPop,
-  metro,
-  measure,
-}: {
-  cityPop: number;
-  metro: { pop: number; members: number } | null;
-  measure: PopulationMeasure;
-}) {
-  return (
-    <span className="pop-inline">
-      <span className={measure === 'city' ? 'active' : undefined}>City {formatPop(cityPop)}</span>
-      {metro && <span className={measure === 'metro' ? 'active' : undefined}>Metro {formatPop(metro.pop)}</span>}
-    </span>
-  );
-}

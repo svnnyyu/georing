@@ -108,6 +108,7 @@ export function SettingsForm() {
           <Toggle label="Suggestions" checked={settings.suggestions} onChange={(v) => set({ suggestions: v })} />
           <Toggle label="Hints" checked={settings.hints} onChange={(v) => set({ hints: v })} />
           <Toggle label="Subdivisions" checked={settings.subdivisions} onChange={(v) => set({ subdivisions: v })} />
+          <Toggle label="Sound effects" checked={settings.sound} onChange={(v) => set({ sound: v })} soundAlways />
         </div>
       </section>
     </div>

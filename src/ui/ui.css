@@ -325,17 +325,22 @@
   display: flex;
   flex-wrap: wrap;
   justify-content: space-between;
+  align-items: baseline;
   gap: var(--space-1) var(--space-3);
 }
 
-.pop-inline {
-  display: inline-flex;
-  gap: var(--space-3);
+/* "FROM": a small label like the section headings, before the start city's name, which is in
+   the start diamond's turquoise. */
+.hud-label {
+  font-size: var(--text-xs);
+  letter-spacing: var(--label-letter-spacing);
+  text-transform: uppercase;
   color: var(--text-dim);
 }
 
-.pop-inline .active {
+.start-name {
   color: var(--accent);
+  font-weight: 600;
 }
 
 /* The guess box slides down from the top once the globe has risen. */
@@ -377,8 +382,18 @@
 
 .reveal-headline {
   margin: 0;
-  font-family: var(--font-display);
-  font-size: var(--text-lg);
+  /* Body font (the pixel font's small digits are hard to read), uppercase and spaced out like
+     the buttons: "SOLVED · 2 GUESSES". */
+  font-family: var(--font-body);
+  font-weight: 600;
+  font-size: var(--text-md);
+  letter-spacing: var(--label-letter-spacing);
+  text-transform: uppercase;
+}
+
+/* The reveal list sits a little closer to its "Top 5 in this ring" label. */
+.popup.reveal .log {
+  margin-top: calc(-1 * var(--space-1));
 }
 
 .overlay {
@@ -577,13 +592,16 @@
     padding: var(--space-3);
   }
   .hud-top {
-    column-gap: var(--space-2);
+    column-gap: var(--space-1);
+  }
+  .hud-ring {
+    margin-right: var(--space-1); /* a little more room between "Ring 1/3" and its band */
   }
   .hud-actions {
     gap: var(--space-1);
   }
   .hud-actions .squares {
-    margin-right: var(--space-1);
+    margin-right: 0;
   }
   .dialog {
     padding: var(--space-4);
@@ -987,8 +1005,8 @@ input[type='range']:focus-visible {
 }
 
 /* The country (and region) sits on the same line, right after the city name. */
-.info-card .name {
-  white-space: nowrap; /* the card widens to fit the line rather than breaking it */
+.info-card .place {
+  white-space: nowrap; /* the place moves to the next line whole, never past the card's edge */
 }
 
 .info-card .place {

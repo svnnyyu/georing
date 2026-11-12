@@ -7,8 +7,8 @@ const int = new Intl.NumberFormat('en-US', { maximumFractionDigits: 0 });
 
 export const formatPop = (n: number) => int.format(n);
 export const formatKm = (n: number) => `${int.format(n)} km`;
-/** A distance band with one unit: "0–1,000 km". */
-export const formatKmRange = (inner: number, outer: number) => `${int.format(inner)}–${formatKm(outer)}`;
+/** A distance band with one unit and thin spaces around the dash: "0 – 1,000 km". */
+export const formatKmRange = (inner: number, outer: number) => `${int.format(inner)}\u2009–\u2009${formatKm(outer)}`;
 
 /** Normalized city names used by more than one city (computed once per data set). */
 const sharedNames = new WeakMap<GameData, Set<string>>();
