@@ -58,6 +58,9 @@ export const FLY_PULLBACK_FIT_FRACTION = 0.75;
 export const MIN_VIEW_WIDTH_KM = 100; // closest zoom: this many km across the shorter side
 export const GRATICULE_STEP_DEG = 10;
 export const GLOBE_FIT_FRACTION = 0.9; // globe diameter vs shorter screen side, whole-Earth view
+// Pixel globe setting: the map is drawn at this share of CSS-pixel resolution, then scaled up
+// with hard edges (0.5 = 2×2 CSS px blocks). Rings, markers and labels stay sharp on top.
+export const PIXEL_GLOBE_SCALE = 0.5;
 export const HOME_ZOOM = 1.2; // start screen globe size, relative to the whole-Earth view
 export const GLOBE_MIN_ZOOM = 0.8; // furthest zoom out, relative to the whole-Earth view
 export const GLOBE_START_VIEW = { lat: 20, lon: 10 } as const;

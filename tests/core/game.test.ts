@@ -29,6 +29,7 @@ describe('settings', () => {
       suggestions: false,
       subdivisions: false,
       hints: true,
+      pixelGlobe: false,
       measure: 'city',
       mode: 'population',
     });

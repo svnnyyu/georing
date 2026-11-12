@@ -19,6 +19,45 @@
   pointer-events: none;
 }
 
+/* CRT finish over everything (popups included): faint scanlines and darker corners. It
+   never takes clicks. */
+.crt {
+  position: fixed;
+  inset: 0;
+  z-index: 30;
+  pointer-events: none;
+  background:
+    repeating-linear-gradient(to bottom, var(--scanline) 0 1px, transparent 1px var(--scanline-gap)),
+    radial-gradient(ellipse at center, transparent 60%, var(--vignette) 100%);
+}
+
+/* Pixel depth: buttons, tiles and panels cast a hard shadow straight down, and buttons
+   press into it when clicked. */
+.btn,
+.tile,
+.menu-tile,
+.icon-btn,
+.toggle,
+.dialog,
+.popup,
+.hud,
+.info-card {
+  box-shadow: 0 var(--shadow-offset) 0 var(--shadow);
+}
+
+.text-btn {
+  box-shadow: 0 2px 0 var(--shadow);
+}
+
+.btn:active:not(:disabled),
+.tile:active:not(:disabled),
+.menu-tile:active:not(:disabled),
+.icon-btn:active,
+.text-btn:active:not(:disabled) {
+  transform: translateY(2px);
+  box-shadow: 0 1px 0 var(--shadow);
+}
+
 /* Layer for info cards, matching the globe's area (pointer events pass through). */
 .card-layer {
   position: absolute;
@@ -154,6 +193,10 @@
 }
 
 .btn.hero {
+  /* Hard drop shadow plus the soft turquoise glow. */
+  box-shadow:
+    0 var(--shadow-offset) 0 var(--shadow),
+    0 0 18px color-mix(in srgb, var(--accent) 35%, transparent);
   min-width: min(420px, 100%);
   padding: var(--space-4) var(--space-6);
   font-family: var(--font-display);
@@ -162,7 +205,11 @@
   text-transform: uppercase;
   color: var(--text);
   border-color: var(--accent);
-  box-shadow: 0 0 18px color-mix(in srgb, var(--accent) 35%, transparent);
+}
+
+.tagline,
+.start-meta {
+  text-wrap: balance; /* even lines on narrow screens, no lone last word */
 }
 
 .start-meta {
@@ -239,6 +286,18 @@
   gap: var(--space-3);
 }
 
+.hud-ring,
+.hud-band {
+  white-space: nowrap;
+}
+
+/* If the top row still can't fit (very narrow phones), the squares and buttons wrap to a
+   second line, kept to the right. */
+.hud-top {
+  flex-wrap: wrap;
+  row-gap: var(--space-2);
+}
+
 .hud-ring {
   /* Body font: the pixel display font's digits are hard to read this small ("8" vs "S"). */
   font-family: var(--font-body);
@@ -246,17 +305,20 @@
   font-size: var(--text-lg);
 }
 
-.hud-top .squares {
-  margin-left: auto;
-  align-self: center;
-}
 
-/* Hint and Skip: side by side, centred on each other. */
+
+/* Guess squares, Hint and Skip: one group on the right, centred on each other; it moves to
+   a second line as a whole when the row is too narrow. */
 .hud-actions {
   display: flex;
   align-items: center;
   gap: var(--space-2);
   align-self: center;
+  margin-left: auto;
+}
+
+.hud-actions .squares {
+  margin-right: var(--space-1);
 }
 
 .hud-start {
@@ -491,6 +553,16 @@
   }
   .hud {
     top: calc(var(--space-4) + 48px);
+    padding: var(--space-3);
+  }
+  .hud-top {
+    column-gap: var(--space-2);
+  }
+  .hud-actions {
+    gap: var(--space-1);
+  }
+  .hud-actions .squares {
+    margin-right: var(--space-1);
   }
   .dialog {
     padding: var(--space-4);
@@ -625,6 +697,12 @@ input[type='range']:focus-visible {
 .input:focus {
   border-color: var(--accent);
   outline: none;
+}
+
+/* A turquoise block cursor where the browser supports one (a thin one elsewhere). */
+.input {
+  caret-color: var(--accent);
+  caret-shape: block;
 }
 
 .slider {

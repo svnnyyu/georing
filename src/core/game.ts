@@ -22,6 +22,7 @@ export function defaultSettings(): Settings {
     suggestions: false,
     subdivisions: false,
     hints: true,
+    pixelGlobe: false,
     measure: 'city',
     mode: 'population',
   };
@@ -51,6 +52,7 @@ export function sanitizeSettings(input: Partial<Settings> | null | undefined): S
     suggestions: typeof s.suggestions === 'boolean' ? s.suggestions : d.suggestions,
     subdivisions: typeof s.subdivisions === 'boolean' ? s.subdivisions : d.subdivisions,
     hints: typeof s.hints === 'boolean' ? s.hints : d.hints,
+    pixelGlobe: typeof s.pixelGlobe === 'boolean' ? s.pixelGlobe : d.pixelGlobe,
     measure: s.measure === 'metro' ? 'metro' : 'city',
     mode: 'population',
   };

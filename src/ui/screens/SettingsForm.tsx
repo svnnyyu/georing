@@ -82,7 +82,7 @@ export function SettingsForm() {
           label="Mode"
           options={[
             { value: 'population', label: 'Population' },
-            { value: 'density', label: 'Density (later)', disabled: true },
+            { value: 'density', label: 'Density', disabled: true },
           ]}
           value="population"
           onChange={() => {}}
@@ -95,6 +95,7 @@ export function SettingsForm() {
           <Toggle label="Suggestions" checked={settings.suggestions} onChange={(v) => set({ suggestions: v })} />
           <Toggle label="Hints" checked={settings.hints} onChange={(v) => set({ hints: v })} />
           <Toggle label="Subdivisions" checked={settings.subdivisions} onChange={(v) => set({ subdivisions: v })} />
+          <Toggle label="Pixel globe" checked={settings.pixelGlobe} onChange={(v) => set({ pixelGlobe: v })} />
         </div>
       </section>
     </div>

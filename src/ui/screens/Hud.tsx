@@ -8,7 +8,7 @@ import type { GameState } from '../../core/types.ts';
 import { GuessInput } from '../components/GuessInput.tsx';
 import { BulbIcon } from '../components/Icons.tsx';
 import { metroOf, PopulationInline } from '../components/Population.tsx';
-import { formatKm, placeOf } from '../format.ts';
+import { formatKm, formatKmRange, placeOf } from '../format.ts';
 import { useGame } from '../state/GameProvider.tsx';
 
 function outcomeMessage(outcome: GuessOutcome, name: string): { text: string; tone: string } {
@@ -55,16 +55,16 @@ export function Hud({ game }: { game: GameState }) {
           Ring {game.current + 1}
           <span className="dim">/{game.rings.length}</span>
         </span>
-        <span className="dim small">
-          {formatKm(ring.innerKm)}–{formatKm(ring.outerKm)}
+        <span className="dim small hud-band">
+          {formatKmRange(ring.innerKm, ring.outerKm)}
           {game.settings.measure === 'metro' ? ' · metro areas' : ''}
         </span>
-        <span className="row squares" aria-label={`${left} guesses left`}>
-          {Array.from({ length: game.settings.guessesPerRing }, (_, i) => (
-            <span key={i} className={i < game.settings.guessesPerRing - left ? 'sq wrong' : 'sq unused'} />
-          ))}
-        </span>
         <span className="hud-actions">
+          <span className="row squares" aria-label={`${left} guesses left`}>
+            {Array.from({ length: game.settings.guessesPerRing }, (_, i) => (
+              <span key={i} className={i < game.settings.guessesPerRing - left ? 'sq wrong' : 'sq unused'} />
+            ))}
+          </span>
           {/* Hint and Skip stay (greyed out) once the ring is over, so the box keeps its
               shape; only the guess box goes. */}
           {game.settings.hints && (

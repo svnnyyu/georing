@@ -36,6 +36,7 @@ interface GlobeState {
   up: boolean;
   spin: boolean;
   subdivisions: boolean;
+  pixel: boolean;
 }
 
 type MarkerHandler = (id: string | null, x: number, y: number) => void;
@@ -55,6 +56,7 @@ export default function App() {
     up: false,
     spin: true,
     subdivisions: false,
+    pixel: false,
   });
   const globe = useRef<GlobeHandle>(null);
   const markers = useRef<{ hover?: MarkerHandler; tap?: MarkerHandler }>({});
@@ -75,6 +77,7 @@ export default function App() {
           lowered={!state.up}
           overlay={state.overlay}
           subdivisions={state.subdivisions}
+          pixel={state.pixel}
           idleSpin={state.spin && !state.up}
           onMarkerHover={(id, x, y) => markers.current.hover?.(id, x, y)}
           onMarkerTap={(id, x, y) => markers.current.tap?.(id, x, y)}
@@ -89,6 +92,7 @@ export default function App() {
         !error && <div className="center-screen loading">Loading cities…</div>
       )}
       {error && <div className="app-error">{error}</div>}
+      <div className="crt" aria-hidden="true" />
     </div>
   );
 }
@@ -105,12 +109,10 @@ function Game({ controls }: { controls: GlobeControls }) {
 
   // Hand the globe what to draw.
   const overlay = useMemo(() => buildOverlay(data, game), [data, game]);
-  useEffect(() => setGlobe({ overlay, up: game !== null, subdivisions: settings.subdivisions }), [
-    overlay,
-    game,
-    settings.subdivisions,
-    setGlobe,
-  ]);
+  useEffect(
+    () => setGlobe({ overlay, up: game !== null, subdivisions: settings.subdivisions, pixel: settings.pixelGlobe }),
+    [overlay, game, settings.subdivisions, settings.pixelGlobe, setGlobe],
+  );
 
   // Start screen: shown with no game, and kept briefly while its exit animation plays.
   const [leaving, setLeaving] = useState(false);

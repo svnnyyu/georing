@@ -3,7 +3,7 @@
 
 import { unitPop } from '../../core/data.ts';
 import type { GameRecord, RingRecord } from '../../core/history.ts';
-import { formatKm, formatPop, placeOf } from '../format.ts';
+import { formatKmRange, formatPop, placeOf } from '../format.ts';
 import { useGame } from '../state/GameProvider.tsx';
 import { SectionLabel } from './Controls.tsx';
 
@@ -57,7 +57,7 @@ export function GameSummary({ record }: { record: GameRecord }) {
                     'No cities'
                   )}
                   <br />
-                  {formatKm(ring.innerKm)}–{formatKm(ring.outerKm)}
+                  {formatKmRange(ring.innerKm, ring.outerKm)}
                   {answer ? ` · ${formatPop(unitPop(data, record.settings.measure, answer.id))}` : ''}
                 </span>
                 <span className="num">{ringStatus(ring)}</span>

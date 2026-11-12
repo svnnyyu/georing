@@ -72,6 +72,7 @@ export function Tiles<T extends string | boolean>({
           aria-checked={o.value === value}
           className={o.value === value ? 'tile selected' : 'tile'}
           disabled={o.disabled}
+          title={o.disabled ? 'Coming later' : undefined}
           onClick={() => onChange(o.value)}
         >
           {o.label}

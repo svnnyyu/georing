@@ -67,6 +67,8 @@ export interface Settings {
   subdivisions: boolean;
   /** Offer the three hints (country, area circle, first letter) in each ring. */
   hints: boolean;
+  /** Draw the map at a low resolution, scaled up with hard pixel edges. */
+  pixelGlobe: boolean;
   measure: PopulationMeasure;
   mode: GameMode;
 }
