@@ -211,6 +211,19 @@ describe('Countries mode on the real data', () => {
     expect(name('ru')).not.toBe('United Kingdom');
   });
 
+  it('skips random starts where every ring has the same answer, but keeps a chosen one', async () => {
+    const { realData, idOf } = await import('./fixtures.ts');
+    const { data: real } = realData();
+    const answers = (s: ReturnType<typeof newGame>) => new Set(s.rings.map((r) => r.answerId).filter((a) => a !== null));
+    for (let seed = 1; seed <= 40; seed++) {
+      const s = newGame(real, { ringWidthKm: 500, ringCount: 3, mode: 'countries' }, seed, NOW);
+      expect(answers(s).size, `seed ${seed}`).toBeGreaterThan(1);
+    }
+    // Nagpur, in the middle of India: India in every ring, but the player chose it
+    const s = newGame(real, { startCityId: idOf(real, 'Nagpur'), ringWidthKm: 500, ringCount: 3, mode: 'countries' }, 1, NOW);
+    expect(answers(s)).toEqual(new Set([countryUnitId('IN')]));
+  });
+
   it('plays the 193 UN members, the 2 observers and 3 disputed places; territories count for their country', async () => {
     const { realData } = await import('./fixtures.ts');
     const { data: real } = realData();

@@ -10,6 +10,7 @@ import {
   HINTS_PER_RING,
   RING_COUNT,
   RING_WIDTH_KM,
+  START_REPICKS,
 } from '../config.ts';
 import { cityOrThrow, unitIdOf, type GameData } from './data.ts';
 import { buildCountryRings, countryOutsideKm, pointInRing } from './countries.ts';
@@ -78,7 +79,7 @@ function emptyRingState(ring: Ring): RingState {
 /** A random start city from the well-known pool, balanced across continents: first a
  *  continent, weighted by its number of start cities ^ CONTINENT_BALANCE_EXPONENT, then a
  *  city in it. Purely proportional picks would put about 57% of starts in Asia. */
-export function randomStartCity(data: GameData, seed: number): number {
+export function randomStartCity(data: GameData, seed: number, attempt = 0): number {
   const byContinent = new Map<string, number[]>();
   for (const c of data.cities) {
     if (!c.wellKnown) continue;
@@ -87,7 +88,8 @@ export function randomStartCity(data: GameData, seed: number): number {
     list.push(c.id);
     byContinent.set(continent, list);
   }
-  const rng = createRng(deriveSeed(seed, SALT_START));
+  // Attempt 0 keeps the original seed's pick, so existing seeds give the same start.
+  const rng = createRng(attempt === 0 ? deriveSeed(seed, SALT_START) : deriveSeed(seed, SALT_START, attempt));
   const continents = [...byContinent.keys()].sort();
   const weights = continents.map((k) => byContinent.get(k)!.length ** CONTINENT_BALANCE_EXPONENT);
   const continent = continents[weightedIndex(rng, weights)]!;
@@ -105,23 +107,30 @@ export function resolveRingCount(settings: Pick<Settings, 'ringCount' | 'ringWid
  *  seed and settings always give the same game. */
 export function newGame(data: GameData, settingsIn: Partial<Settings>, seed: number, now: Date): GameState {
   const settings = sanitizeSettings(settingsIn);
-  let startCityId = settings.startCityId;
-  if (startCityId === null || !data.byId.has(startCityId)) {
-    startCityId = randomStartCity(data, seed);
-  }
   const countries = settings.mode === 'countries';
-  // Countries mode starts from the city itself (its metro doesn't matter there).
-  const startId = countries ? startCityId : unitIdOf(data, settings.measure, startCityId);
-  const start = cityOrThrow(data, startId);
   const ringCount = resolveRingCount(settings);
-  const rings = countries
-    ? buildCountryRings(data.grid ?? new Map(), start, {
-        widthKm: settings.ringWidthKm,
-        ringCount,
-        // The start city's own country counts too: it is often the answer near home.
-        excludeCc: null,
-      })
-    : buildRings(data, startId, { widthKm: settings.ringWidthKm, ringCount, measure: settings.measure });
+  const chosen = settings.startCityId !== null && data.byId.has(settings.startCityId);
+  const build = (cityId: number) => {
+    // Countries mode starts from the city itself (its metro doesn't matter there).
+    const startId = countries ? cityId : unitIdOf(data, settings.measure, cityId);
+    const start = cityOrThrow(data, startId);
+    const rings = countries
+      ? buildCountryRings(data.grid ?? new Map(), start, {
+          widthKm: settings.ringWidthKm,
+          ringCount,
+          // The start city's own country counts too: it is often the answer near home.
+          excludeCc: null,
+        })
+      : buildRings(data, startId, { widthKm: settings.ringWidthKm, ringCount, measure: settings.measure });
+    return { cityId, startId, rings };
+  };
+  let game = build(chosen ? settings.startCityId! : randomStartCity(data, seed));
+  // Countries mode: a random start where every ring has the same answer isn't much of a game;
+  // try the next random start (a chosen start city is kept as it is).
+  for (let attempt = 1; !chosen && countries && ringCount > 1 && oneAnswer(game.rings) && attempt <= START_REPICKS; attempt++) {
+    game = build(randomStartCity(data, seed, attempt));
+  }
+  const { cityId: startCityId, startId, rings } = game;
   const ringStates = rings.map(emptyRingState);
   return {
     seed,
@@ -133,6 +142,11 @@ export function newGame(data: GameData, settingsIn: Partial<Settings>, seed: num
     current: 0,
     phase: ringStates[0]!.status === 'empty' ? 'ringOver' : 'playing',
   };
+}
+
+/** Do all the rings with an answer have the same one? */
+function oneAnswer(rings: Ring[]): boolean {
+  return new Set(rings.map((r) => r.answerId).filter((id) => id !== null)).size <= 1;
 }
 
 export function currentRing(state: GameState): Ring {

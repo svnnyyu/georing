@@ -6,6 +6,7 @@ import { toRecord } from '../../core/history.ts';
 import type { GameState } from '../../core/types.ts';
 import { GameSummary } from '../components/GameSummary.tsx';
 import { Modal } from '../components/Modal.tsx';
+import { ShareButton } from '../components/ShareButton.tsx';
 import { useGame } from '../state/GameProvider.tsx';
 
 export function SummaryDialog({
@@ -24,6 +25,7 @@ export function SummaryDialog({
   return (
     <Modal kicker="GeoRing" title="Game over" onClose={onClose}>
       <GameSummary record={record} />
+      <ShareButton record={record} className="btn full" />
       <div className="dialog-actions three">
         <button type="button" className="btn primary" onClick={() => start()}>
           Play again

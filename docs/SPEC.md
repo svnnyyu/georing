@@ -47,6 +47,7 @@ Every ring in a game has the same width, set by the player, and the target in ea
 - The answer is the eligible city with the highest population in the ring.
 - An empty ring (all ocean, for example) shows "No cities in this ring" and advances automatically. It is recorded as empty, not as a miss.
 - Random start cities are drawn from the well-known pool (population ≥ 500,000 or a national capital), balanced across continents: first a continent, weighted by (number of start cities on it) ^ `CONTINENT_BALANCE_EXPONENT` (0.5), then a city in it. That gives roughly Asia 35%, Africa 17%, Europe 15%, North America 14%, South America 12%, Oceania 6%; purely proportional picks would put 57% of starts in Asia. Continents come from GeoNames `countryInfo.txt` and are stored in `countries.json`.
+- Countries mode skips a random start where every ring has the same answer (deep inside India, every ring is India): the next random pick is tried, up to `START_REPICKS` (30) times. Before this, 40% of random 3 × 500 km Countries games had one answer throughout (75% at 100 km, 15% at 1,000 km); after it, none in 1,000 seeds per setting. A start city the player chose is kept as it is, and so is a replay (it reuses the game's start city). As a side effect, starts deep inside the largest countries come up less often in Countries mode.
 
 ### Metro mode
 
@@ -120,6 +121,17 @@ How they appear (from milestone 6): a hint button in the in-game box (a pixel li
 ### End of game
 
 A summary screen shows each ring's answer, whether it was solved (and in how many guesses), missed or skipped, and the hints used. The game is saved to history as it finishes. Buttons: Play again (same settings, new seed), Main menu, and History (on phones Play again takes its own row).
+
+**Sharing.** A full-width **Share results** button sits under the ring list, on the summary and on a past game opened in History. It shares a short text with no answers in it (`core/share.ts`), for example:
+
+```
+GeoRing 🌍 Cities
+📍 Paris · 3 rings of 500 km
+🟩🟨🟥
+2 of 3 rings solved · 💡 2
+```
+
+One square per ring in the summary's colours (🟩 every target found, 🟨 some, 🟥 none, ⬜ an empty ring), `SHARE.squaresPerLine` (10) to a line and at most `SHARE.maxSquares` (50), then "+N more"; 💡 is the hints used, left out when none. On a phone (coarse pointer) it opens the system share sheet; elsewhere it copies the text (with an older copy method as a fallback) and the button says "Copied!" for `SHARE_COPIED_MS`.
 
 ## Data
 

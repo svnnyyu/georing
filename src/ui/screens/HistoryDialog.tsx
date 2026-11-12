@@ -6,6 +6,7 @@ import { useState, type CSSProperties } from 'react';
 import { gameScore, historyStats, type GameRecord } from '../../core/history.ts';
 import { SectionLabel } from '../components/Controls.tsx';
 import { GameSummary } from '../components/GameSummary.tsx';
+import { ShareButton } from '../components/ShareButton.tsx';
 import { Modal } from '../components/Modal.tsx';
 import { formatKm } from '../format.ts';
 import { useGame } from '../state/GameProvider.tsx';
@@ -35,6 +36,7 @@ export function HistoryDialog({
       // Closing a past game steps back to the list, like its Back button.
       <Modal kicker={`History · ${playedAt(open)}`} title="Past game" onClose={() => setOpen(null)}>
         <GameSummary record={open} />
+        <ShareButton record={open} className="btn full" />
         <div className="dialog-actions">
           <button
             type="button"
