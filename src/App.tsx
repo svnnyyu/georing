@@ -15,6 +15,7 @@ import { ringView } from './ui/globe/camera.ts';
 import { GlobeView, type GlobeHandle } from './ui/globe/GlobeView.tsx';
 import type { GlobeOverlay } from './ui/globe/overlay.ts';
 import { MenuDialog, SettingsDialog } from './ui/screens/Dialogs.tsx';
+import { AboutDialog } from './ui/screens/AboutDialog.tsx';
 import { HistoryDialog } from './ui/screens/HistoryDialog.tsx';
 import { Hud } from './ui/screens/Hud.tsx';
 import { StartScreen } from './ui/screens/StartScreen.tsx';
@@ -95,7 +96,7 @@ export default function App() {
   );
 }
 
-type Dialog = 'menu' | 'settings' | 'history' | null;
+type Dialog = 'menu' | 'settings' | 'history' | 'about' | null;
 
 function Game({ controls }: { controls: GlobeControls }) {
   const { data, game, next, quit, settings } = useGame();
@@ -254,8 +255,10 @@ function Game({ controls }: { controls: GlobeControls }) {
           }}
           onSettings={() => setDialog('settings')}
           onHistory={() => setDialog('history')}
+          onAbout={() => setDialog('about')}
         />
       )}
+      {dialog === 'about' && <AboutDialog onClose={close} />}
       {dialog === 'history' && <HistoryDialog onClose={close} />}
       {dialog === 'settings' && <SettingsDialog onClose={close} inGame={game !== null} />}
     </>

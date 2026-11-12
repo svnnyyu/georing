@@ -84,7 +84,7 @@ All of this shows as soon as a city is guessed. A difficulty setting that hides 
 The game is called **GeoRing** on screen (a working title). The globe always fills the screen; everything else floats on top of it, centred.
 
 - **Start screen**: the title (pixel display font, pale mint with a slight 1 px green/blue split, kept subtle so it stays readable), a tagline, a big Start game button and a one-line summary of the current settings (settings live in the menu). The globe rests low on the screen like a horizon (`--globe-rest-offset`, a share of the screen height), a little larger than the whole-Earth view (`HOME_ZOOM`). The renderer moves the globe inside its canvas rather than moving the canvas, so the map always fills the screen and no canvas edge shows while it rises or sinks, even when zoomed in. It turns slowly (`IDLE_SPIN_DEG_PER_SEC`) from the moment the page opens, even while the city data is still loading ("Loading cities…" shows over it); it can't be dragged or zoomed there. Starting a game plays a sequence (timings in `config.ts`): the title and tagline lift away and the button and summary drop away (`START_EXIT_MS`), the globe rises to the centre (`GLOBE_RISE_MS`; the start screen is marked as leaving before the first paint, so it never blinks out for a frame), then the camera flies to the start city, always taking `FLY_START_MS` however near or far the city is, and the in-game box slides down from the top (`HUD_ENTER_MS`). UI animations use smooth easing curves (`--ease-out`, `--ease-in`); stepped easing looked like dropped frames at these sizes. Leaving a game flies the globe home while it sinks back to the horizon, and it spins again.
-- **Menu** (hamburger button, top left, always available): a popup tile grid like Krillion's and Eraly's. Play: New game (back to the start screen), Settings. More: History (from milestone 7) and About (shown, marked "soon", until milestone 9).
+- **Menu** (hamburger button, top left, always available): a popup tile grid like Krillion's and Eraly's. Play: New game (back to the start screen), Settings. More: History (from milestone 7) and About (from milestone 9: how to play and credits).
 - **Settings** popup: start city (Random, or Pick a city with a search box), Ring size, Number of rings and Number of cities sliders, Population measure, Mode (Density shown disabled), and square toggle switches for Suggestions, Hints and Subdivisions. Changes are saved at once (`ringgame.v1.settings`); game rules apply to the next game, while Subdivisions applies straight away.
 - **In game**: a box at the top centre with "Ring k / n", the ring's distance band and guess squares; the start city with its city and metro population on one line (active one highlighted); the guess box; the last guess's outcome ("Not in this ring: Paris is 244 km outside", "Bristol is in the ring, but not the biggest", "Reading is right!"); and a **Skip** button (outline turns red on hover; same height as the hint button beside it) that gives up on the ring. When a ring ends only the guess box goes; Hint and Skip stay, greyed out, so the box keeps its spacing (it counts as missed, marked skipped, and the answer is revealed). The guesses themselves show as markers on the globe. Guessing the start city (or a city in its metro) and repeated guesses are ignored with a note.
 - **Reveal** popup (bottom centre, so the ring stays visible) when a ring ends: solved in N guesses, "Missed: it was X" or "Skipped: it was X", the top 5 with the player's guesses coloured (the city name green for the right guess, red for a wrong one; the place and any "…" stay dim; no squares), then Next ring (or See summary on the last ring). An empty ring shows "No cities in this ring" for `EMPTY_RING_ADVANCE_MS` and moves on by itself.
@@ -116,8 +116,8 @@ City data comes from GeoNames (city-proper populations), map shapes come from Na
 | --- | --- | --- | --- |
 | [GeoNames](https://download.geonames.org/export/dump/) | Cities, populations, coordinates, alternate names | `cities15000.zip`, `countryInfo.txt`, `admin1CodesASCII.txt` | CC BY 4.0, attribution required |
 | [Natural Earth](https://www.naturalearthdata.com/downloads/) | Land, coastlines, country borders, lakes | Admin 0 countries + land at 1:110m, 1:50m, 1:10m | Public domain |
-| [GHSL](https://human-settlement.emergency.copernicus.eu/download.php) | Metro mode (now), Density mode (later), and a check on city figures | Urban Centre Database R2024A V1.2 (`GHS_UCDB_GLOBE_R2024A_V1_2.zip`, 264 MB) | CC BY 4.0, attribution required |
-| [citypopulation.de](https://www.citypopulation.de/) | 2020 census urban populations for Chinese cities | Copied into `pipeline/china_urban_2020*.csv` | Free to use with the source named; check terms before the public deploy |
+| [GHSL](https://human-settlement.emergency.copernicus.eu/download.php) | Metro mode (now), Density mode (later), and a check on city figures | Urban Centre Database R2024A V1.2 (`GHS_UCDB_GLOBE_R2024A_V1_2.zip`, 264 MB) | European Commission reuse notice: reuse authorised with the source acknowledged (cite the dataset; see its readme) |
+| [citypopulation.de](https://www.citypopulation.de/) | 2020 census urban populations for Chinese cities | Copied into `pipeline/china_urban_2020*.csv` | CC BY 3.0 (their terms of use, checked for milestone 9): credit "Thomas Brinkhoff: City Population" with a link, and name the original source (China's 2020 census) |
 
 ### Pipeline (`pipeline/build_cities.py`, run by hand, not at runtime)
 
@@ -169,7 +169,7 @@ Expect roughly 25,000–30,000 cities and a file of a few MB, which compresses w
 - **Boroughs and wards listed as cities:** GeoNames lists some city parts as their own cities. Smaller ones are kept, but parts that showed up as ring answers for the test start cities are removed through `overrides.csv`: New York's five boroughs, all 86 places inside Greater London, Shanghai's 14 urban districts and Shenzhen's Bao'an. If another one shows up as an odd answer in play, remove it the same way.
 - **Other whole-district figures:** GHSL shows that Ho Chi Minh City (14.0M city, 14.6M urban area) and Lahore (13.0M, 14.3M) are not inflated: their boundaries roughly match the built-up city. The metro report's "city larger than its metro" list finds the ones that are, mostly district or county totals in India, Pakistan, Kenya and the Philippines (Kakamega 1.87M against a 125k town, Nowrangapur 1.2M against 60k). Japanese, Korean and Chinese municipalities also appear there because they legitimately include countryside. Not yet corrected; see Open decisions.
 - **Uneven population years:** GeoNames figures come from different census years by country. This is acceptable for a prototype; note it in the credits.
-- **Attribution:** an About/Credits screen must credit GeoNames (CC BY 4.0) and Natural Earth, GHSL (CC BY 4.0, with the dataset citation from its readme), and name the source of the Chinese urban figures (2020 census via citypopulation.de and Wikipedia).
+- **Attribution:** the About popup (menu → About, from milestone 9) credits GeoNames (CC BY 4.0), the GHS Urban Centre Database (European Commission JRC 2024, with its DOI), the Chinese urban figures (2020 census of China via Thomas Brinkhoff: City Population, CC BY 3.0, and Wikipedia), Natural Earth (public domain) and the fonts (SIL Open Font License), notes that population years differ by country, and links the source code. It also has a short How to play.
 
 ## Guess matching
 
@@ -332,12 +332,12 @@ How the parts connect:
 - Fuse.js (or a small function) for fuzzy matching.
 - [Vitest](https://vitest.dev/) for unit tests on `src/core/`.
 - Python 3 for the data pipeline.
-- GitHub Pages for hosting, deployed by a GitHub Actions workflow.
+- GitHub Pages for hosting at https://svnnyyu.github.io/georing/ (public repository `svnnyyu/georing`), deployed by `.github/workflows/deploy.yml` on every push to `main`: `npm ci`, `npm test`, `npm run build` (which type-checks), then publish `dist/`. A push whose tests fail is not published. The production build uses `base: '/georing/'` (vite.config.ts); every data fetch goes through `import.meta.env.BASE_URL`, so the same code works at the root in development.
 
 ### Folder layout
 
 ```
-ring-city-game/
+georing/
 ├── CLAUDE.md                 short rules for Claude Code + pointer to docs/SPEC.md
 ├── docs/
 │   ├── SPEC.md               this document

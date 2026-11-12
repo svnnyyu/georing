@@ -533,11 +533,27 @@
   cursor: not-allowed;
 }
 
-.soon {
-  font-size: var(--text-xs);
-  color: var(--text-dim);
-  letter-spacing: 0;
-  text-transform: none;
+/* About: plain lists with links in the accent colour. */
+.about-list {
+  margin: 0;
+  padding-left: var(--space-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  font-size: var(--text-sm);
+  line-height: 1.5;
+}
+
+.about-note {
+  margin: var(--space-3) 0 0;
+}
+
+.dialog a {
+  color: var(--accent);
+}
+
+.dialog a:hover {
+  text-decoration: none;
 }
 
 .stack {
