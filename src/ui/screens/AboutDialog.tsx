@@ -1,6 +1,7 @@
 // The About popup: how to play, and credits for the data and fonts (their licences require
 // attribution; see docs/SPEC.md -> Data -> Sources).
 
+import { SUPPORT_URL } from '../../config.ts';
 import { SectionLabel } from '../components/Controls.tsx';
 import { Modal } from '../components/Modal.tsx';
 
@@ -92,7 +93,7 @@ export function AboutDialog({ onClose }: { onClose: () => void }) {
       </section>
 
       <p className="small about-note">
-        <Ext href="https://github.com/svnnyyu/georing">Source code on GitHub</Ext>
+        Enjoying GeoRing? <Ext href={SUPPORT_URL}>Buy me a coffee</Ext> · <Ext href="https://github.com/svnnyyu/georing">Source code on GitHub</Ext>
       </p>
     </Modal>
   );

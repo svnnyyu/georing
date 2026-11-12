@@ -33,6 +33,10 @@ export const ClockIcon = () => (
   <PixelIcon px={[[2, 0, 5], [1, 1], [7, 1], [0, 2, 1, 5], [8, 2, 1, 5], [1, 7], [7, 7], [2, 8, 5], [4, 2, 1, 3], [5, 4, 2]]} />
 );
 export const InfoIcon = () => <PixelIcon px={[[4, 1], [3, 3, 2], [4, 4, 1, 3], [3, 7, 3]]} />;
+/** A coffee cup with a handle and a wisp of steam. */
+export const CoffeeIcon = () => (
+  <PixelIcon px={[[3, 0], [5, 1], [4, 1], [1, 3, 6], [1, 4, 1, 3], [6, 4, 1, 3], [2, 4, 4, 3], [7, 4], [8, 4, 1, 2], [7, 6], [2, 7, 4]]} />
+);
 export const BulbIcon = () => (
   <PixelIcon px={[[3, 0, 3], [2, 1], [6, 1], [1, 2, 1, 3], [7, 2, 1, 3], [2, 5], [6, 5], [3, 6, 3], [3, 8, 3], [4, 3, 1, 3]]} />
 );

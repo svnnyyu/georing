@@ -1,6 +1,7 @@
 // The hamburger menu (a tile grid, like Krillion and Eraly) and the Settings popup.
 
-import { ClockIcon, GearIcon, InfoIcon, PlayIcon } from '../components/Icons.tsx';
+import { SUPPORT_URL } from '../../config.ts';
+import { ClockIcon, CoffeeIcon, GearIcon, InfoIcon, PlayIcon } from '../components/Icons.tsx';
 import { SectionLabel } from '../components/Controls.tsx';
 import { Modal } from '../components/Modal.tsx';
 import { SettingsForm } from './SettingsForm.tsx';
@@ -42,6 +43,11 @@ export function MenuDialog({
           About
         </button>
       </div>
+      {/* Tips go through a Stripe payment page, opened in a new tab. */}
+      <a className="menu-tile support-tile" href={SUPPORT_URL} target="_blank" rel="noopener noreferrer">
+        <CoffeeIcon />
+        Buy me a coffee
+      </a>
     </Modal>
   );
 }

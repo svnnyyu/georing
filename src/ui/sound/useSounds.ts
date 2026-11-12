@@ -16,7 +16,7 @@ export function useUiSounds(enabled: boolean): void {
 
   useEffect(() => {
     const onClick = (e: MouseEvent) => {
-      const el = (e.target as Element | null)?.closest?.('button, [role="button"]');
+      const el = (e.target as Element | null)?.closest?.('button, [role="button"], a.menu-tile');
       if (!el || (el as HTMLButtonElement).disabled) return;
       const name = el.getAttribute('data-sound');
       if (name === 'none') return;

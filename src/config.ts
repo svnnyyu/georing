@@ -254,3 +254,7 @@ export const SOUNDS = {
   ],
 } satisfies Record<string, SoundNote[]>;
 export type SoundName = keyof typeof SOUNDS;
+
+// --- Support ---
+// "Buy me a coffee": a Stripe Payment Link (pay what you want), opened from the menu and About.
+export const SUPPORT_URL = 'https://buy.stripe.com/5kQ00ceZ02v3485drads400';

@@ -604,6 +604,25 @@
   outline: none;
 }
 
+/* Buy me a coffee: a full-width tile under the grid, icon and text side by side. It's a link
+   (to the Stripe payment page), so no underline. */
+.dialog a.menu-tile.support-tile {
+  flex-direction: row;
+  min-height: 56px;
+  text-decoration: none;
+  /* Its own warm coffee colour, so it stands apart from the navy tiles; fully amber on hover. */
+  color: var(--support);
+  border-color: color-mix(in srgb, var(--support) 45%, var(--border));
+  background: color-mix(in srgb, var(--support) 7%, var(--bg));
+}
+
+.dialog a.menu-tile.support-tile:hover,
+.dialog a.menu-tile.support-tile:focus-visible {
+  color: var(--support);
+  border-color: var(--support);
+  background: color-mix(in srgb, var(--support) 12%, var(--bg));
+}
+
 .menu-tile:disabled {
   color: var(--text-dim);
   cursor: not-allowed;
