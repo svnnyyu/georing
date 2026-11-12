@@ -33,13 +33,18 @@
   /* Globe line widths (CSS px; the renderer reads these) */
   --globe-coast-width: 1;
   --globe-border-width: 0.8;
+  /* Disputed borders (Western Sahara / Morocco, Kosovo / Serbia): dash and gap, px */
+  --globe-disputed-dash: 3;
+  --globe-disputed-gap: 2.5;
   --globe-graticule-width: 0.6;
   --subdivision-line: var(--country-line); /* drawn thinner and fainter than country borders */
   --globe-subdivision-width: 0.5;
 
   /* Globe rings and markers (the renderer reads these) */
   --ring-width: 1.5;
-  --ring-past-opacity: 0.35;
+  --ring-past-opacity: 0.35; /* the ring just played */
+  --ring-old-opacity: 0.1; /* older rings fade down to this ... */
+  --ring-fade-rings: 4; /* ... over this many rings */
   --marker-outline: var(--bg);
   --marker-faded-opacity: 0.45;
   --marker-label-size: 11px;

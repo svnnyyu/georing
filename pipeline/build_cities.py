@@ -129,6 +129,10 @@ def read_extra_aliases() -> dict[int, list[str]]:
     return out
 
 
+# Display names that differ from GeoNames' (the UN observer state is "State of Palestine").
+COUNTRY_NAMES = {"PS": "Palestine"}
+
+
 def read_country_aliases() -> dict[str, list[str]]:
     """Hand-checked country abbreviations (DRC, UAE, KSA ...), from country_aliases.csv."""
     out: dict[str, list[str]] = {}
@@ -444,7 +448,7 @@ def main() -> None:
             continue
         alts = [a for a in alt_names.get(info["geonameid"], []) if not is_short_code(a[0])]
         country_records[cc] = {
-            "name": info["name"],
+            "name": COUNTRY_NAMES.get(cc, info["name"]),
             "continent": info["continent"],
             "aliases": pick_aliases([info["name"]], alts, info["langs"], country_aliases.get(cc, [])),
         }

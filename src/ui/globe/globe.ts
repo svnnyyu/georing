@@ -21,6 +21,7 @@ import {
   MAX_CENTER_LAT,
   WHEEL,
   CLIP_MARGIN_DEG,
+  MAX_CANVAS_DPR,
   RESAMPLE_PRECISION_PX,
   TAP_MAX_MOVE_PX,
   TAP_MAX_MS,
@@ -29,7 +30,7 @@ import {
 import type { Detail, WorldLayers } from '../../data/loadGeo.ts';
 import { prepareLines, prepareWorld, visible, type Item, type PreparedWorld } from './layers.ts';
 import { fadeAlpha, updateFading, type Fading } from './fade.ts';
-import { drawOverlay, ringCircle, type RingClip, hitTest, type GlobeOverlay, type ProjectedMarker } from './overlay.ts';
+import { drawOverlay, ringCircle, type RingClip, hitTest, type GlobeOverlay, type MarkerKind, type ProjectedMarker } from './overlay.ts';
 import { flyPath, scaleExtent, scaleForRadius, wholeEarthScale, type View, type Viewport } from './camera.ts';
 import { Sky } from './sky.ts';
 import { readGlobeTheme, type GlobeTheme } from './theme.ts';
@@ -139,7 +140,7 @@ export class Globe {
   }
 
   /** Call when the canvas's CSS size changes. Keeps the current zoom level. */
-  resize(width: number, height: number, dpr = window.devicePixelRatio || 1): void {
+  resize(width: number, height: number, dpr = Math.min(window.devicePixelRatio || 1, MAX_CANVAS_DPR)): void {
     const zoom = this.sized ? this.zoom : HOME_ZOOM; // first size: start at the home view
     this.sized = true;
     this.viewport = { width: Math.max(1, width), height: Math.max(1, height) };
@@ -270,6 +271,13 @@ export class Globe {
     return this.flyToView({ center: [lon, lat], scale }, durationMs);
   }
 
+  /** Smoothly zoom out so a circle of radiusKm fits (as flyTo does), keeping the current
+   *  centre. Never zooms in (past halfway round the Earth a ring's fitting radius shrinks). */
+  zoomOutTo(radiusKm: number, durationMs?: number): Promise<void> {
+    const scale = Math.min(this.projection.scale(), scaleForRadius(radiusKm, this.viewport));
+    return this.flyToView({ center: this.view.center, scale }, durationMs);
+  }
+
   /** Fly back to the start screen's view (the whole Earth, a little larger: HOME_ZOOM). */
   flyHome(): Promise<void> {
     if (!this.sized) {
@@ -290,12 +298,14 @@ export class Globe {
     if (durationMs !== undefined) path.durationMs = durationMs;
     const t0 = performance.now();
     return new Promise((resolve) => {
+      this.flying = true;
       const step = (now: number) => {
         if (this.destroyed) return resolve();
         const t = Math.min(1, (now - t0) / path.durationMs);
         const v = path.at(t);
         this.projection.rotate(rotationFor(v.center[0], v.center[1]));
         this.setScale(v.scale);
+        if (t >= 1) this.flying = false; // the last frame in full detail
         this.draw();
         if (t < 1) this.flight = requestAnimationFrame(step);
         else resolve();
@@ -303,12 +313,18 @@ export class Globe {
       this.flight = requestAnimationFrame(step);
       this.interruptFlight = () => {
         cancelAnimationFrame(this.flight);
+        if (this.flying) {
+          this.flying = false;
+          this.requestDraw(); // back to full detail where the flight stopped
+        }
         resolve();
       };
     });
   }
 
   private interruptFlight: () => void = () => {};
+  /** A camera flight is running: its frames use the lighter map (see pickDetail). */
+  private flying = false;
 
   destroy(): void {
     this.destroyed = true;
@@ -506,6 +522,10 @@ export class Globe {
       this.requested.add(want);
       this.options.onNeedDetail?.(want);
     }
+    // During a camera flight the full 1:50m map (about 4 times the work per frame) gives way to
+    // the simplified one: the map is moving too fast to see the difference, and the last frame
+    // is drawn in full detail.
+    if (want === '50m' && this.flying && this.worlds['50m-lo']) return '50m-lo';
     const order: Detail[] = want === '50m' ? ['50m', '50m-lo', '110m'] : ['50m-lo', '50m', '110m'];
     return order.find((d) => this.worlds[d]) ?? null;
   }
@@ -546,8 +566,12 @@ export class Globe {
       ctx.fill();
     };
 
-    // 0. Stars, behind everything (the globe covers the ones behind it)
-    this.sky.draw(ctx, theme, this.projection.rotate(), width, height, width / 2, cy);
+    // 0. Stars, behind everything (the globe covers the ones behind it; none show once it
+    // fills the screen)
+    const globeRadius = this.projection.scale();
+    if (globeRadius < farthest) {
+      this.sky.draw(ctx, theme, this.projection.rotate(), width, height, width / 2, cy, globeRadius);
+    }
 
     // 1. Ocean and graticule
     fillShape({ type: 'Sphere' }, theme.ocean);
@@ -587,11 +611,17 @@ export class Globe {
       ctx.strokeStyle = theme.countryLine;
       ctx.lineWidth = theme.borderWidth;
       ctx.stroke();
+      // Disputed borders: the same line, dashed
+      trace(world.disputedBorders);
+      ctx.setLineDash(theme.disputedDash);
+      ctx.stroke();
+      ctx.setLineDash([]);
       ctx.globalAlpha = 1;
       // 4b. State/province borders (Subdivisions setting), fainter when zoomed out
-      if (this.subdivisions) {
-        const { startZoom, fullAtZoom, max } = SUBDIVISION_OPACITY;
-        const ts = Math.min(1, Math.max(0, (this.zoom - startZoom) / (fullAtZoom - startZoom)));
+      const { startZoom, fullAtZoom, max } = SUBDIVISION_OPACITY;
+      const ts = Math.min(1, Math.max(0, (this.zoom - startZoom) / (fullAtZoom - startZoom)));
+      // Not traced at all while they would be invisible (zoomed out)
+      if (this.subdivisions && ts > 0) {
         trace(this.subdivisions);
         ctx.globalAlpha = max * ts;
         ctx.strokeStyle = theme.subdivisionLine;
@@ -600,37 +630,52 @@ export class Globe {
         ctx.globalAlpha = 1;
       }
     }
-    // Draws inside a ring band only (Countries mode tints), or everywhere without a clip.
-    const clipped = (clip: RingClip | undefined, draw: () => void) => {
-      if (!clip) return draw();
+    // Draws inside one or more ring bands only (Countries mode tints), or everywhere without
+    // clips. Bands never overlap, so one even-odd clip of all their edge circles covers them
+    // all (an edge two neighbouring bands share appears twice and cancels out correctly).
+    const clipped = (clips: RingClip[], draw: () => void) => {
+      if (clips.length === 0) return draw();
       ctx.save();
       this.projection.precision(RESAMPLE_PRECISION_PX); // smooth circles
       ctx.beginPath();
-      path(ringCircle(clip, clip.outerKm));
-      if (clip.innerKm > 0) path(ringCircle(clip, clip.innerKm));
+      for (const clip of clips) {
+        path(ringCircle(clip, clip.outerKm));
+        if (clip.innerKm > 0) path(ringCircle(clip, clip.innerKm));
+      }
       ctx.clip('evenodd');
       this.projection.precision(0);
       draw();
       ctx.restore();
     };
     // 4c. Countries mode: guessed and revealed countries, tinted in their result's colour
-    // inside the ring they were guessed in
+    // inside the ring they were guessed in. A country guessed in many rings with the same
+    // result is traced and filled once, clipped to all those rings together.
     if (world) {
+      const groups = new Map<string, { cc: string; kind: MarkerKind; faded: boolean; clips: RingClip[]; whole: boolean }>();
       for (const f of this.overlay.countryFills ?? []) {
-        const shapes = world.countries.get(f.cc);
+        const key = `${f.cc}|${f.kind}|${f.faded}`;
+        let g = groups.get(key);
+        if (!g) groups.set(key, (g = { cc: f.cc, kind: f.kind, faded: f.faded, clips: [], whole: false }));
+        if (f.clip) g.clips.push(f.clip);
+        else g.whole = true;
+      }
+      for (const g of groups.values()) {
+        const shapes = world.countries.get(g.cc);
         if (!shapes) continue;
-        const color = f.kind === 'correct' ? theme.correct : f.kind === 'wrong' ? theme.wrong : theme.outside;
-        clipped(f.clip, () => {
-        ctx.beginPath();
-        for (const it of visible(shapes, this.view.center, cap)) path(it.geo);
-        ctx.globalAlpha = f.faded ? theme.countryFillFadedOpacity : theme.countryFillOpacity;
-        ctx.fillStyle = color;
-        ctx.fill();
-        ctx.globalAlpha = f.faded ? theme.markerFadedOpacity : 1;
-        ctx.strokeStyle = color;
-        ctx.lineWidth = theme.hintWidth;
-        ctx.stroke();
-        ctx.globalAlpha = 1;
+        const shown = visible(shapes, this.view.center, cap);
+        if (shown.length === 0) continue;
+        const color = g.kind === 'correct' ? theme.correct : g.kind === 'wrong' ? theme.wrong : theme.outside;
+        clipped(g.whole ? [] : g.clips, () => {
+          ctx.beginPath();
+          for (const it of shown) path(it.geo);
+          ctx.globalAlpha = g.faded ? theme.countryFillFadedOpacity : theme.countryFillOpacity;
+          ctx.fillStyle = color;
+          ctx.fill();
+          ctx.globalAlpha = g.faded ? theme.markerFadedOpacity : 1;
+          ctx.strokeStyle = color;
+          ctx.lineWidth = theme.hintWidth;
+          ctx.stroke();
+          ctx.globalAlpha = 1;
         });
       }
     }
@@ -643,18 +688,16 @@ export class Globe {
     if (hinted && hinted.length && countryAlpha !== null) {
       const f = countryAlpha;
       fading ||= this.hintCountry!.at + HINT_FADE_MS > now;
-      clipped(this.hintCountry!.value.clip, () => {
-        ctx.beginPath();
-        for (const it of visible(hinted, this.view.center, cap)) path(it.geo);
-        ctx.globalAlpha = theme.hintFillOpacity * f;
-        ctx.fillStyle = theme.hint;
-        ctx.fill();
-        ctx.globalAlpha = f;
-        ctx.strokeStyle = theme.hint;
-        ctx.lineWidth = theme.hintWidth;
-        ctx.stroke();
-        ctx.globalAlpha = 1;
-      });
+      ctx.beginPath();
+      for (const it of visible(hinted, this.view.center, cap)) path(it.geo);
+      ctx.globalAlpha = theme.hintFillOpacity * f;
+      ctx.fillStyle = theme.hint;
+      ctx.fill();
+      ctx.globalAlpha = f;
+      ctx.strokeStyle = theme.hint;
+      ctx.lineWidth = theme.hintWidth;
+      ctx.stroke();
+      ctx.globalAlpha = 1;
     }
     const areaAlpha = fadeAlpha(this.hintArea, now) ?? 0;
     if (this.hintArea && areaAlpha === 0 && this.hintArea.leaving) this.hintArea = null;

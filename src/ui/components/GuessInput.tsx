@@ -10,11 +10,17 @@
 //   box. Enter with none highlighted fills the top suggestion.
 
 import { useMemo, useRef, useState } from 'react';
-import { enterGuess, normalize, suggestions as findSuggestions, type MatchContext } from '../../core/matching.ts';
-import { placeOf } from '../format.ts';
+import {
+  enterGuess,
+  normalize,
+  suggestions as findSuggestions,
+  territoryFor,
+  type MatchContext,
+} from '../../core/matching.ts';
+import { placeOf, shortCountry, theCountry } from '../format.ts';
 import { useGame } from '../state/GameProvider.tsx';
 
-export function GuessInput({ inRing, onGuess }: { inRing: Set<number>; onGuess: (cityId: number) => void }) {
+export function GuessInput({ inRing, onGuess }: { inRing: Set<number>; onGuess: (cityId: number, area?: string) => void }) {
   const { data, index: cityIndex, countryIndex, game, settings } = useGame();
   const regions = settings.subdivisions;
   // Countries mode matches country names (and guesses countries, never metros).
@@ -25,6 +31,8 @@ export function GuessInput({ inRing, onGuess }: { inRing: Set<number>; onGuess: 
   const [text, setText] = useState('');
   /** The city the box currently names (after picking or autocorrecting). */
   const [chosen, setChosen] = useState<number | null>(null);
+  /** Countries mode: the territory the chosen country was found through (its code). */
+  const [chosenArea, setChosenArea] = useState<string | null>(null);
   const [note, setNote] = useState<string | null>(null);
   const [picker, setPicker] = useState<number[] | null>(null);
   /** Suggestions show while typing, and close once one is chosen. */
@@ -36,9 +44,14 @@ export function GuessInput({ inRing, onGuess }: { inRing: Set<number>; onGuess: 
   const found = dropdown && open && !picker ? findSuggestions(index, data, text, measure) : [];
   // Metro mode: the member city a suggestion was found through ("via Buena Park").
   const via = new Map(found.map((s) => [s.unitId, s.viaCityId]));
+  // Countries mode: the territory a suggestion was found through ("berm" -> Bermuda, which
+  // counts as the United Kingdom), shown in its place.
+  const territoryOf = (unitId: number) => (countries ? territoryFor(data, text, unitId, true) : null);
   const list = picker ?? found.map((s) => s.unitId);
   const chosenCity = chosen === null ? undefined : data.byId.get(chosen);
-  const showsChosen = chosenCity !== undefined && normalize(text) === normalize(chosenCity.name);
+  // The name in the box: the country's, or the territory's it was found through ("Bermuda").
+  const chosenName = chosenArea ? (data.countries[chosenArea]?.name ?? chosenArea) : chosenCity?.name;
+  const showsChosen = chosenName !== undefined && normalize(text) === normalize(chosenName);
 
   const reset = () => {
     setNote(null);
@@ -46,19 +59,26 @@ export function GuessInput({ inRing, onGuess }: { inRing: Set<number>; onGuess: 
     setActive(-1);
   };
 
-  /** Fill the box with a city's name; the next Enter guesses it. */
+  /** Fill the box with a city's name; the next Enter guesses it. Countries mode: a territory
+   *  found by its name ("Puerto Rico") stays as typed, with a note that it counts as its
+   *  country; the guess is the country's, remembered as the territory. */
   const choose = (cityId: number) => {
-    setText(data.byId.get(cityId)?.name ?? '');
+    const name = data.byId.get(cityId)?.name ?? '';
+    const territory = territoryOf(cityId);
+    setText(territory?.name ?? name);
     setChosen(cityId);
+    setChosenArea(territory?.cc ?? null);
     setOpen(false);
     reset();
+    if (territory) setNote(`${territory.name} counts as part of ${theCountry(name)}`);
     inputRef.current?.focus();
   };
 
-  const submit = (cityId: number) => {
-    onGuess(cityId);
+  const submit = (cityId: number, area?: string) => {
+    onGuess(cityId, area);
     setText('');
     setChosen(null);
+    setChosenArea(null);
     setOpen(true);
     reset();
     inputRef.current?.focus();
@@ -70,7 +90,7 @@ export function GuessInput({ inRing, onGuess }: { inRing: Set<number>; onGuess: 
       return;
     }
     if (showsChosen) {
-      submit(chosen!);
+      submit(chosen!, chosenArea ?? undefined);
       return;
     }
     if (!text.trim()) return;
@@ -93,7 +113,7 @@ export function GuessInput({ inRing, onGuess }: { inRing: Set<number>; onGuess: 
   };
 
   return (
-    <div>
+    <div className="guess-input">
       <div className="guess-box">
         <form
           className="row"
@@ -132,7 +152,9 @@ export function GuessInput({ inRing, onGuess }: { inRing: Set<number>; onGuess: 
               // An invisible copy of the text pushes the place to just after the name.
               <span className="input-context" aria-hidden="true">
                 <span className="mirror">{text}</span>
-                <span className="ctx">{placeOf(data, chosen!, { list: true, regions })}</span>
+                <span className="ctx">
+                  {chosenArea ? shortCountry(chosenCity!) : placeOf(data, chosen!, { list: true, regions })}
+                </span>
               </span>
             )}
           </div>
@@ -145,6 +167,7 @@ export function GuessInput({ inRing, onGuess }: { inRing: Set<number>; onGuess: 
           <ul className="list" role="listbox">
             {list.map((id, i) => {
               const c = data.byId.get(id)!;
+              const territory = territoryOf(id);
               return (
                 <li key={id}>
                   <button
@@ -153,10 +176,11 @@ export function GuessInput({ inRing, onGuess }: { inRing: Set<number>; onGuess: 
                     onMouseDown={(e) => e.preventDefault()}
                     onClick={() => choose(id)}
                   >
-                    <span>{c.name}</span>
+                    <span>{territory?.name ?? c.name}</span>
                     <span className="dim">
-                      {via.get(id) ? `via ${data.byId.get(via.get(id)!)?.name} · ` : ''}
-                      {placeOf(data, id, { list: true, regions })}
+                      {territory
+                        ? shortCountry(c)
+                        : `${via.get(id) ? `via ${data.byId.get(via.get(id)!)?.name} · ` : ''}${placeOf(data, id, { list: true, regions })}`}
                     </span>
                   </button>
                 </li>

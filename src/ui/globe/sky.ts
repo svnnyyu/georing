@@ -44,6 +44,8 @@ export class Sky {
     height: number,
     cx: number,
     cy: number,
+    /** The globe's radius on screen: stars behind it aren't drawn. */
+    globeRadius = 0,
   ): void {
     this.projection.scale(STARS.skyScale * Math.hypot(width, height)).translate([cx, cy]).rotate(rotation);
     const facing: [number, number] = [-rotation[0], -rotation[1]];
@@ -52,6 +54,7 @@ export class Sky {
       if (geoDistance([s.lon, s.lat], facing) > Math.PI / 2) continue; // on the far side of the sky
       const p = this.projection([s.lon, s.lat]);
       if (!p || p[0] < 0 || p[1] < 0 || p[0] > width || p[1] > height) continue;
+      if (Math.hypot(p[0] - cx, p[1] - cy) < globeRadius - 2 * s.size) continue; // behind the globe
       const k = s.size;
       const x = Math.round(p[0]) - Math.floor(k / 2);
       const y = Math.round(p[1]) - Math.floor(k / 2);

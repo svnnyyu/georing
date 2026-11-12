@@ -956,6 +956,13 @@ input[type='range']:focus-visible {
   z-index: 2;
 }
 
+/* The guess box and its note ("City not found"), spaced like the HUD's other lines */
+.guess-input {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
 /* --- Messages and result colours --- */
 .message {
   margin: 0; /* spacing comes from the container's gap, like everything around it */
@@ -1069,6 +1076,7 @@ input[type='range']:focus-visible {
 .info-card {
   position: absolute;
   z-index: 3;
+  width: max-content; /* as wide as the widest line, up to INFO_CARD.width */
   padding: var(--space-3);
   background: var(--surface);
   border: var(--border-width) solid var(--border);

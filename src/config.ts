@@ -8,9 +8,9 @@ export const RING_CAP = 10; // with the widest rings, 10 × 2,000 km stays just 
 export const FAR_SIDE_KM = Math.PI * EARTH_RADIUS_KM; // about 20,015 km
 
 // --- Setup sliders: [min, max, step, default] ---
-// Ring width choices, roughly log-spaced (each step ×1.33–1.5) so the slider moves evenly
-// from "regional" to "continental".
-export const RING_WIDTH_KM = { options: [250, 500, 750, 1000, 1500, 2000], default: 500 } as const;
+// Ring width choices, roughly log-spaced so the slider moves evenly from "local" (100 km) to
+// "continental".
+export const RING_WIDTH_KM = { options: [100, 250, 500, 750, 1000, 1500, 2000], default: 500 } as const;
 // 1 to RING_CAP rings, or 'all': rings keep coming until the next one would pass the far side
 // of the Earth (so floor(FAR_SIDE_KM / width) rings).
 export const RING_COUNT = { min: 1, max: RING_CAP, step: 1, default: 3 } as const;
@@ -65,12 +65,24 @@ export const SUGGESTIONS_MAX = 6;
 
 // --- Globe camera ---
 export const RING_FIT_FRACTION = 0.5; // outer ring diameter vs shorter screen side
+// Where each new ring puts the camera, by how far round the Earth the ring is (as a share of
+// the way to the far side, FAR_SIDE_KM): rings within the first third (outer edge up to about
+// 6,700 km) are centred on the start city, rings within the last third (inner edge from about
+// 13,300 km) on the point opposite it; in between the camera only zooms out, staying wherever
+// the player is looking.
+export const RECENTRE_FRACTION = 1 / 3;
 // Mid-flight between two places the camera pulls back until both fit in this share of the
 // shorter screen side (larger = less pull-back).
 export const FLY_PULLBACK_FIT_FRACTION = 0.75;
 export const MIN_VIEW_WIDTH_KM = 100; // closest zoom: this many km across the shorter side
 export const GRATICULE_STEP_DEG = 10;
 export const GLOBE_FIT_FRACTION = 0.9; // globe diameter vs shorter screen side, whole-Earth view
+// Borders drawn dashed because they are disputed (pairs of country codes): Western Sahara /
+// Morocco and Kosovo / Serbia. The places' other borders stay solid.
+export const DISPUTED_BORDERS: readonly (readonly [string, string])[] = [
+  ['EH', 'MA'],
+  ['XK', 'RS'],
+];
 export const HOME_ZOOM = 1.2; // start screen globe size, relative to the whole-Earth view
 // Stars behind the globe: fixed points on a sky sphere that turns with the globe but doesn't
 // zoom. The sky is projected so its visible half spans skyScale × the screen's diagonal.
@@ -133,7 +145,7 @@ export const TAP_MAX_MOVE_PX = 6; // a press that moves less than this is a tap,
 export const TAP_MAX_MS = 500;
 
 // --- Game screens ---
-export const INFO_CARD = { width: 240, height: 150, offsetPx: 14 } as const; // hover card placement
+export const INFO_CARD = { width: 240, height: 150, offsetPx: 14 } as const; // hover card: max width, rough height, offset
 export const EMPTY_RING_ADVANCE_MS = 1800; // "No cities in this ring" shows this long, then moves on
 // Starting a game: the start screen's words leave, the globe rises, then the camera flies to the
 // start city, and the guess box slides in. (CSS reads these through variables set in App.tsx.)
@@ -150,6 +162,9 @@ export const FLY_START_MS = 2400;
 // d3-geo adaptive resampling (curving long edges), in px. Used for the graticule, the rim and
 // (later) rings; the map layers skip it because their edges are already short.
 export const RESAMPLE_PRECISION_PX = 0.5;
+// The globe canvas is drawn at the screen's pixel density up to this much: phones at 3× would
+// paint more than twice the pixels of 2× for a difference too small to see.
+export const MAX_CANVAS_DPR = 2;
 export const CLIP_MARGIN_DEG = 0.5; // extra clip radius beyond the screen corners
 
 // --- Storage ---

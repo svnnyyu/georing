@@ -5,7 +5,16 @@
 // a game starts, zooms out to fit each new ring, and flies home when the game is left.
 
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type RefObject } from 'react';
-import { FLY_START_MS, GLOBE_RISE_MS, HINT_PAN_MS, HUD_ENTER_MS, INTRO, START_EXIT_MS } from './config.ts';
+import {
+  FAR_SIDE_KM,
+  FLY_START_MS,
+  GLOBE_RISE_MS,
+  HINT_PAN_MS,
+  HUD_ENTER_MS,
+  INTRO,
+  RECENTRE_FRACTION,
+  START_EXIT_MS,
+} from './config.ts';
 import { cityOrThrow } from './core/data.ts';
 import { sphereCentre } from './core/geo.ts';
 import { loadData, type LoadedData } from './data/loadData.ts';
@@ -193,7 +202,13 @@ function Game({ controls }: { controls: GlobeControls }) {
     const view = ringView(start.lat, start.lon, ring.innerKm, ring.outerKm);
     const fly = (durationMs?: number) => void globe.current?.flyTo(view.lat, view.lon, view.radiusKm, durationMs);
     if (firstRing.current === gameKey) {
-      fly(); // next ring: timed by distance
+      // Next ring: centred on the start city in the first third of the way round, and on the
+      // point opposite it in the last third (ringView). In between, only zoom out, staying
+      // where the player is looking (often a side of the ring).
+      const nearStart = ring.outerKm <= RECENTRE_FRACTION * FAR_SIDE_KM;
+      const nearFarSide = ring.innerKm >= (1 - RECENTRE_FRACTION) * FAR_SIDE_KM;
+      if (nearStart || nearFarSide) fly();
+      else void globe.current?.zoomOutTo(view.radiusKm);
       return;
     }
     firstRing.current = gameKey;

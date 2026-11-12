@@ -3,6 +3,7 @@
 import { CONTINENT_NAMES } from '../core/countries.ts';
 import { countryName, type GameData } from '../core/data.ts';
 import { normalize } from '../core/matching.ts';
+import type { City } from '../core/types.ts';
 
 const int = new Intl.NumberFormat('en-US', { maximumFractionDigits: 0 });
 
@@ -46,4 +47,26 @@ export function placeOf(data: GameData, cityId: number, opts: { regions?: boolea
   const usable = c.admin1 && c.admin1 !== c.name && c.admin1 !== country;
   const show = usable && (opts.regions || (opts.list && shared(data).has(normalize(c.name))));
   return show ? `${c.admin1}, ${country}` : country;
+}
+
+/** A country's name as it reads mid-sentence: "the United States", "the Netherlands", "France". */
+export function theCountry(name: string): string {
+  if (name.startsWith('The ')) return `the ${name.slice(4)}`;
+  return /^(United |Netherlands$|Philippines$|Bahamas$|Gambia$|Maldives$|Czech Republic$|Dominican Republic$|Central African|Democratic Republic|Republic of)/.test(
+    name,
+  )
+    ? `the ${name}`
+    : name;
+}
+
+/** A country's name for beside a territory, without a leading "The": "United Kingdom",
+ *  "Netherlands". */
+export function shortCountry(country: City): string {
+  return country.name.replace(/^The /, '');
+}
+
+/** A territory's label on the globe, with the country it counts toward: "Bermuda (United
+ *  Kingdom)", "Aruba (Netherlands)". */
+export function territoryLabel(data: GameData, cc: string, country: City): string {
+  return `${data.countries[cc]?.name ?? cc} (${shortCountry(country)})`;
 }

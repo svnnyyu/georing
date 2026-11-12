@@ -20,7 +20,8 @@ Steps:
    2.5′ square it lies in; people are summed per 0.25° square and country.
 3. Output (rows from 90°N, columns from 180°W; a square's index is row × width + column):
        {"res": 0.25, "width": 1440, "height": 720,
-        "countries": {"FR": [index, people, index, people, ...], ...}}
+        "countries": {"FR": [index, people, index, people, ...], ...},
+        "territories": {"PR": "US", ...}}
    Indexes are delta-encoded per country (each is the difference from the previous one) and
    people rounded to whole numbers; squares with under MIN_PEOPLE are dropped.
 """
@@ -39,6 +40,8 @@ import rasterio
 from rasterio.features import rasterize
 from rasterio.transform import from_origin
 from rasterio.windows import Window
+
+from build_geo import western_sahara_args
 
 ROOT = Path(__file__).resolve().parent.parent
 RAW = ROOT / "pipeline" / "raw"
@@ -61,6 +64,34 @@ MIN_PEOPLE = 1
 # administers them, as GeoNames does.
 NO_CODE = {"Somaliland": "SO", "N. Cyprus": "CY", "Baikonur": "KZ", "Siachen Glacier": "IN", "Kosovo": "XK"}
 
+# Countries mode plays the 193 UN members and the 2 observers (Holy See VA, Palestine PS), plus
+# three places whose status is disputed and which the game keeps as their own entries rather
+# than take a side: Taiwan (TW), Kosovo (XK) and Western Sahara (EH). Every other territory
+# Natural Earth maps separately counts toward the country that governs it. Their people are kept
+# under their own code in the output (so the game can say "Bermuda (UK)"), with this map
+# written alongside; the game adds them to their country.
+TERRITORY_OF = {
+    # United Kingdom
+    "AI": "GB", "BM": "GB", "FK": "GB", "GG": "GB", "IM": "GB", "JE": "GB", "KY": "GB",
+    "MS": "GB", "SH": "GB", "TC": "GB", "VG": "GB",
+    # United States
+    "AS": "US", "GU": "US", "MP": "US", "PR": "US", "VI": "US",
+    # France
+    "BL": "FR", "MF": "FR", "NC": "FR", "PF": "FR", "PM": "FR", "WF": "FR",
+    # Netherlands (the Kingdom's constituent countries)
+    "AW": "NL", "CW": "NL", "SX": "NL",
+    # Denmark
+    "FO": "DK", "GL": "DK",
+    # China
+    "HK": "CN", "MO": "CN",
+    # Finland
+    "AX": "FI",
+    # Australia
+    "NF": "AU",
+    # New Zealand (free association)
+    "CK": "NZ", "NU": "NZ",
+}
+
 
 def population_tif() -> Path:
     tif = GHSL / f"{POP_NAME}.tif"
@@ -82,10 +113,13 @@ def countries_geojson() -> dict:
     shp = NE / "ne_50m_admin_0_countries" / "ne_50m_admin_0_countries.shp"
     if not shp.exists():
         sys.exit(f"{shp} is missing: run `python3 pipeline/build_geo.py` first.")
-    out = NE / "ne_50m_admin_0_countries.geojson"
+    # Same countries as the globe, with the whole of Western Sahara (see build_geo.py)
+    out = NE / "ne_50m_admin_0_countries_ws.geojson"
     if not out.exists():
         cmd = ["npx", "--no-install", "mapshaper", "-i", str(shp), "encoding=utf8",
+               "-rename-layers", "countries",
                "-each", "cc = ISO_A2_EH, name = NAME", "-filter-fields", "cc,name",
+               *western_sahara_args("countries"),
                "-o", "format=geojson", str(out)]
         subprocess.run(cmd, check=True, cwd=ROOT)
     return json.loads(out.read_text(encoding="utf-8"))
@@ -216,8 +250,10 @@ def main() -> None:
         result[cc] = flat.tolist()
     top = sorted(((sum(v[1::2]), cc) for cc, v in result.items()), reverse=True)[:8]
     print("  largest: " + ", ".join(f"{cc} {p / 1e6:.0f}M" for p, cc in top))
-    OUT.write_text(json.dumps({"res": OUT_RES, "width": out_w, "height": out_h, "countries": result},
-                              separators=(",", ":")), encoding="utf-8")
+    # Territories that count toward another country, so the game can accept their names too
+    # ("Puerto Rico" -> United States).
+    OUT.write_text(json.dumps({"res": OUT_RES, "width": out_w, "height": out_h, "countries": result,
+                               "territories": TERRITORY_OF}, separators=(",", ":")), encoding="utf-8")
     entries = sum(len(v) // 2 for v in result.values())
     print(f"  {OUT.name}: {OUT.stat().st_size / 1e6:.2f} MB, {len(result)} countries, {entries:,} squares")
 

@@ -25,7 +25,7 @@ export function StartScreen({ leaving }: { leaving: boolean }) {
       <h1 className="hero-title">GeoRing</h1>
       <p className="tagline">
         {/* "within": in Countries mode only the people inside the ring count. */}
-        {countries ? 'Find the most populous country within each ring' : 'Find the most populous city in each ring'}
+        {countries ? 'Find the most populous country in each ring' : 'Find the most populous city in each ring'}
       </p>
       <div className="start-modes">
         <ModeTiles />

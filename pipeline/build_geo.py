@@ -17,6 +17,11 @@ mapshaper (an npm dev dependency) to convert them to quantized TopoJSON:
 
 Countries keep two properties: cc (from ISO_A2_EH, because plain ISO_A2 is -99 for
 France, Norway and a few others) and name. See docs/SPEC.md -> Globe -> Detail levels.
+
+Western Sahara: Natural Earth draws who controls the ground, so most of the territory is
+inside Morocco and "W. Sahara" is only the strip east of the berm. Like most globes and UN
+maps, the game draws the whole territory instead: everything of Morocco's south of 27°40'N
+becomes Western Sahara (western_sahara_args, also used by build_population.py).
 """
 
 from __future__ import annotations
@@ -43,6 +48,29 @@ OUTPUTS = {
     "50m": ("50m", None),
 }
 NE_NAMES = {"land": "land", "countries": "admin_0_countries", "lakes": "lakes", "admin1": "admin_1_states_provinces"}
+
+
+# Morocco's southern border with Western Sahara runs along 27°40'N. Nothing of Morocco's lies
+# south of it, so a box south of that line (and west of the Algerian border) cuts it cleanly.
+WESTERN_SAHARA_BOX = "-20,20,-8,27.6666667"
+
+
+def western_sahara_args(layer: str) -> list[str]:
+    """mapshaper commands that move Morocco's part south of 27°40'N into Western Sahara, on a
+    countries layer that already has cc and name."""
+    return [
+        # Morocco on its own layer, cut in two: the part south of the line becomes Western Sahara
+        "-filter", "cc == 'MA'", "+", "name=ma", f"target={layer}",
+        "-filter", "cc != 'MA'", f"target={layer}",
+        "-clip", f"bbox={WESTERN_SAHARA_BOX}", "+", "name=ma_south", "target=ma",
+        "-each", "cc = 'EH', name = 'W. Sahara'", "target=ma_south",
+        "-erase", f"bbox={WESTERN_SAHARA_BOX}", "target=ma",
+        "-merge-layers", f"target={layer},ma,ma_south", "force", f"name={layer}",
+        # Join the two Western Sahara pieces; every other shape stays as it was
+        "-each", "key = cc == 'EH' ? 'EH' : String(this.id)", f"target={layer}",
+        "-dissolve", "key", "copy-fields=cc,name", f"target={layer}",
+        "-filter-fields", "cc,name", f"target={layer}",
+    ]
 
 
 def shapefile(scale: str, layer: str, theme: str) -> Path:
@@ -75,6 +103,7 @@ def build(name: str) -> Path:
         "-rename-layers", names,
         "-each", "cc = ISO_A2_EH, name = NAME", "target=countries",
         "-filter-fields", "cc,name", "target=countries",
+        *western_sahara_args("countries"),
         "-filter-fields", "", f"target={others}",
         "-o", f"format=topojson", f"quantization={QUANTIZATION}", "target=*", str(out),
     ]

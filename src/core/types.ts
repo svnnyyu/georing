@@ -54,6 +54,9 @@ export interface PopulationFile {
   width: number;
   height: number;
   countries: Record<string, number[]>;
+  /** Territories whose people count toward another country: territory code -> country code
+   *  (PR -> US). Their names are accepted as that country's. */
+  territories?: Record<string, string>;
 }
 
 /** The data files, as loaded. */
@@ -104,8 +107,21 @@ export interface Ring {
   answerId: number | null;
   /** Countries mode: people of each unit inside the ring (same order as unitIds) ... */
   pops?: number[];
-  /** ... and where they live: the centre of the unit's people inside the ring. */
+  /** ... and where they live: the centre of the unit's people inside the ring (of its largest
+   *  area there, so it falls on land; see areas). */
   points?: { lat: number; lon: number }[];
+  /** ... split by area: the country itself and each territory that counts toward it (Bermuda
+   *  for the United Kingdom), most people first, each with the centre of its people. */
+  areas?: RingArea[][];
+}
+
+/** Countries mode: the part of a country's people in a ring that live in one area. */
+export interface RingArea {
+  /** The country's own code, or a territory's (BM). */
+  cc: string;
+  pop: number;
+  lat: number;
+  lon: number;
 }
 
 export type GuessResult = 'correct' | 'wrong' | 'outside';
@@ -113,6 +129,9 @@ export type GuessResult = 'correct' | 'wrong' | 'outside';
 export interface Guess {
   unitId: number;
   result: GuessResult;
+  /** Countries mode: the territory the guess was typed as ("Bermuda" for the United Kingdom),
+   *  so the globe shows that territory. It still counts as its country. */
+  area?: string;
 }
 
 export type HintKind = 'country' | 'area' | 'letter';
@@ -129,9 +148,9 @@ export interface HintState {
   /** Every hint taken this ring, in order (the per-ring budget, and history). */
   used: HintKind[];
   /** Hint 1: countries to tint. Cities mode: the countries of the targets left; Countries
-   *  mode: every country with people in the ring, tinted only inside it (inRing). focus: where
-   *  the camera glides. */
-  countries?: { ccs: string[]; inRing: boolean; focus?: { lat: number; lon: number } };
+   *  mode: every country with people in the ring (outlined whole). focus: where the camera
+   *  glides. */
+  countries?: { ccs: string[]; focus?: { lat: number; lon: number } };
   /** Hint 2: a circle around each target left. */
   areas?: { unitId: number; circle: AreaCircle }[];
   /** Hint 3: each target left as a dot with its first letter (at the city, or where the

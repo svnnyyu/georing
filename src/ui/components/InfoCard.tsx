@@ -2,6 +2,7 @@
 // Guess info card): name and place, both population figures with the active one
 // highlighted, and rank in the ring or distance outside it.
 
+import { useLayoutEffect, useRef } from 'react';
 import { INFO_CARD } from '../../config.ts';
 import { guessInfo } from '../../core/guessInfo.ts';
 import type { GameState } from '../../core/types.ts';
@@ -34,10 +35,20 @@ export function InfoCard({ game, anchor, bounds }: { game: GameState; anchor: Ca
     );
   }
   const info = guessInfo(data, game, anchor.ref.ring, anchor.ref.unitId);
+  const area = anchor.ref.area;
   return (
     <Card anchor={anchor} bounds={bounds}>
       <span className="name">
-        {info.name} <span className="place">{placeOf(data, info.unitId, { regions })}</span>
+        {area ? (
+          // A territory's label: its own name, and the country its people count toward.
+          <>
+            {data.countries[area]?.name ?? area} <span className="place">{info.name}</span>
+          </>
+        ) : (
+          <>
+            {info.name} <span className="place">{placeOf(data, info.unitId, { regions })}</span>
+          </>
+        )}
       </span>
       {info.isCountry ? (
         // Countries mode: the people inside this ring (what it's ranked by), and the whole
@@ -78,11 +89,23 @@ function Card({
   bounds: { width: number; height: number };
   children: React.ReactNode;
 }) {
-  // Keep the card on screen: flip to the left/top of the marker near the edges.
-  const left = anchor.x + OFFSET + CARD_W > bounds.width ? Math.max(0, anchor.x - OFFSET - CARD_W) : anchor.x + OFFSET;
-  const top = anchor.y + OFFSET + CARD_H > bounds.height ? Math.max(0, anchor.y - OFFSET - CARD_H) : anchor.y + OFFSET;
+  // The card is as wide as its widest line (up to CARD_W). Keep it on screen: flip to the
+  // left/top of the marker near the edges, using its measured size once it is laid out.
+  const ref = useRef<HTMLDivElement>(null);
+  const place = (w: number, h: number) => ({
+    left: anchor.x + OFFSET + w > bounds.width ? Math.max(0, anchor.x - OFFSET - w) : anchor.x + OFFSET,
+    top: anchor.y + OFFSET + h > bounds.height ? Math.max(0, anchor.y - OFFSET - h) : anchor.y + OFFSET,
+  });
+  useLayoutEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const { left, top } = place(el.offsetWidth, el.offsetHeight);
+    el.style.left = `${left}px`;
+    el.style.top = `${top}px`;
+  });
+  const { left, top } = place(CARD_W, CARD_H);
   return (
-    <div className="info-card" style={{ left, top, width: CARD_W }} role="tooltip">
+    <div ref={ref} className="info-card" style={{ left, top, maxWidth: CARD_W }} role="tooltip">
       {children}
     </div>
   );

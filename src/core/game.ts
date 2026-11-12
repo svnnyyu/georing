@@ -209,10 +209,14 @@ export function submitGuess(
   data: GameData,
   state: GameState,
   cityId: number,
+  /** Countries mode: the territory the guess was typed as (its code), if any. */
+  area?: string,
 ): { state: GameState; outcome: GuessOutcome } {
   const countries = state.settings.mode === 'countries';
   // Countries mode: guesses are country units already.
   const unitId = countries ? cityId : unitIdOf(data, state.settings.measure, cityId);
+  const cc = data.byId.get(unitId)?.cc;
+  const typedAs = countries && area && data.territories.some((t) => t.cc === area && t.of === cc) ? { area } : {};
   if (state.phase !== 'playing') return { state, outcome: { kind: 'ignored', unitId } };
   const start = cityOrThrow(data, state.startId);
   // The start city is never an answer (in Countries mode its country can be).
@@ -227,13 +231,13 @@ export function submitGuess(
         ? (countryOutsideKm(data.grid ?? new Map(), cityOrThrow(data, unitId).cc, start, ring) ?? 0)
         : distanceOutsideKm(distanceKm(start, cityOrThrow(data, unitId)), ring.innerKm, ring.outerKm),
     );
-    const guesses: Guess[] = [...rs.guesses, { unitId, result: 'outside' }];
+    const guesses: Guess[] = [...rs.guesses, { unitId, result: 'outside', ...typedAs }];
     return { state: withRing(state, { ...rs, guesses }), outcome: { kind: 'outside', unitId, outsideKm } };
   }
 
   const targets = targetsOf(ring, state.settings);
   const correct = targets.includes(unitId);
-  const guesses: Guess[] = [...rs.guesses, { unitId, result: correct ? 'correct' : 'wrong' }];
+  const guesses: Guess[] = [...rs.guesses, { unitId, result: correct ? 'correct' : 'wrong', ...typedAs }];
   const found = guesses.filter((g) => g.result === 'correct').length;
   const misses = guesses.filter((g) => g.result === 'wrong').length;
   let status: RingStatus = 'playing';
@@ -267,11 +271,11 @@ export function useHint(data: GameData, state: GameState): GameState {
       // Every country with people in the ring, tinted inside it (naming the answer's own
       // country would give it away).
       const ccs = ring.unitIds.map((id) => cityOrThrow(data, id).cc);
-      hints.countries = { ccs, inRing: true, ...centreOf(ring.points ?? [], ring.pops) };
+      hints.countries = { ccs, ...centreOf(ring.points ?? [], ring.pops) };
     } else {
       const ccs = [...new Set(left.map((id) => cityOrThrow(data, id).cc))];
       const points = ccs.map((cc) => countryFocus(data, ring, cc)).filter((p): p is LatLon => p !== null);
-      hints.countries = { ccs, inRing: false, ...centreOf(points) };
+      hints.countries = { ccs, ...centreOf(points) };
     }
   }
   if (kind === 'area') {

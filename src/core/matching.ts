@@ -4,6 +4,7 @@
 
 import { AMBIGUOUS_POP_RATIO, FUZZY_THRESHOLDS, SUGGESTIONS_MAX, SUGGESTIONS_MIN_CHARS } from '../config.ts';
 import { cityOrThrow, unitIdOf, type GameData } from './data.ts';
+import type { Territory } from './countries.ts';
 import type { City, PopulationMeasure } from './types.ts';
 
 /** Lowercase, strip accents, hyphens/apostrophes to spaces, drop other punctuation,
@@ -181,6 +182,34 @@ export type EnterAction =
   /** Replace the text in the box with the display name; the next Enter submits it. */
   | { kind: 'correct'; text: string; unitId: number }
   | { kind: 'pick'; unitIds: number[] };
+
+/** Countries mode: if the text names a territory that counts toward this country (exactly or
+ *  with a small typo; with prefix, also its start, as the suggestions list matches), that
+ *  territory's name, for "Puerto Rico counts as part of the United States". null otherwise,
+ *  and when the text matches the country's own name just as well. */
+export function territoryTyped(data: GameData, text: string, unitId: number, prefix = false): string | null {
+  return territoryFor(data, text, unitId, prefix)?.name ?? null;
+}
+
+/** territoryTyped, as the territory itself (with its code). */
+export function territoryFor(data: GameData, text: string, unitId: number, prefix = false): Territory | null {
+  const key = normalize(text);
+  const country = data.byId.get(unitId);
+  if (!key || !country?.isCountry) return null;
+  const matches = (n: string) => (prefix ? n.startsWith(key) : n === key);
+  // The country's own names (its unit's aliases also hold its territories' names)
+  const ownNames = [country.name, ...(data.countries[country.cc]?.aliases ?? [])].map(normalize);
+  if (ownNames.some(matches)) return null;
+  const own = data.territories.filter((t) => t.of === country.cc);
+  const names = (t: (typeof own)[number]) => [t.name, ...t.aliases].map(normalize);
+  const exact = own.find((t) => names(t).some(matches));
+  if (exact) return exact;
+  // Not a typo of the country's own name, but of a territory's
+  if (ownNames.includes(key)) return null;
+  const letters = key.replace(/ /g, '').length;
+  const near = own.find((t) => names(t).some((n) => editDistance(key, n, maxDistanceFor(letters)) <= maxDistanceFor(letters)));
+  return near ?? null;
+}
 
 /** What pressing Enter (or the submit button) does with the typed text (Krillion-style):
  *  "Nwe Yokr", "NYC" or, in Metro mode, "Newark" first become "New York City". */

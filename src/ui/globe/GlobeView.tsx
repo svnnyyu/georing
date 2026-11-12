@@ -14,6 +14,8 @@ export interface GlobeHandle {
   /** durationMs overrides the distance-based flight time. */
   flyTo(lat: number, lon: number, radiusKm?: number, durationMs?: number): Promise<void>;
   /** Fly back to the starting whole-Earth view. */
+  /** Zoom out to fit a circle of radiusKm, keeping the current centre (never zooms in). */
+  zoomOutTo(radiusKm: number, durationMs?: number): Promise<void>;
   flyHome(): Promise<void>;
   /** Where a marker was last drawn (CSS px within the globe), if visible. */
   markerPosition(id: string): { x: number; y: number } | null;
@@ -82,6 +84,10 @@ export function GlobeView({
       .then((w) => globe.setWorld('110m', w))
       .catch(fail);
 
+    // Size the canvas now, then whenever it changes (the observer's first report can come late,
+    // and never in some background browser views).
+    const { width, height } = canvas.getBoundingClientRect();
+    if (width > 0 && height > 0) globe.resize(width, height);
     const observer = new ResizeObserver(([entry]) => {
       if (entry) globe.resize(entry.contentRect.width, entry.contentRect.height);
     });
@@ -129,6 +135,7 @@ export function GlobeView({
     ref,
     () => ({
       flyTo: (lat, lon, radiusKm, durationMs) => globeRef.current?.flyTo(lat, lon, radiusKm, durationMs) ?? Promise.resolve(),
+      zoomOutTo: (radiusKm, durationMs) => globeRef.current?.zoomOutTo(radiusKm, durationMs) ?? Promise.resolve(),
       flyHome: () => globeRef.current?.flyHome() ?? Promise.resolve(),
       markerPosition: (id) => globeRef.current?.markerPosition(id) ?? null,
     }),

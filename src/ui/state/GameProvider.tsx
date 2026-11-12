@@ -26,7 +26,7 @@ interface State {
 
 type Action =
   | { type: 'start'; settings: Settings; seed: number; now: Date }
-  | { type: 'guess'; cityId: number }
+  | { type: 'guess'; cityId: number; area?: string }
   | { type: 'hint' }
   | { type: 'next' }
   | { type: 'skip' }
@@ -39,7 +39,7 @@ function makeReducer(data: GameData) {
         return { game: newGame(data, action.settings, action.seed, action.now), outcome: null };
       case 'guess': {
         if (!state.game) return state;
-        const r = submitGuess(data, state.game, action.cityId);
+        const r = submitGuess(data, state.game, action.cityId, action.area);
         return { game: r.state, outcome: { result: r.outcome, seq: (state.outcome?.seq ?? 0) + 1 } };
       }
       case 'hint':
@@ -86,7 +86,8 @@ export interface GameContextValue {
    *  remembered settings for new games are left as they are. */
   replay: (record: GameRecord) => void;
   clearHistory: () => void;
-  guess: (cityId: number) => void;
+  /** area: Countries mode, the territory the guess was typed as. */
+  guess: (cityId: number, area?: string) => void;
   hint: () => void;
   next: () => void;
   /** Give up on the current ring. */
@@ -167,7 +168,7 @@ export function GameProvider({
       history,
       replay,
       clearHistory,
-      guess: (cityId) => dispatch({ type: 'guess', cityId }),
+      guess: (cityId, area) => dispatch({ type: 'guess', cityId, ...(area ? { area } : {}) }),
       hint: () => dispatch({ type: 'hint' }),
       next: () => dispatch({ type: 'next' }),
       skip: () => dispatch({ type: 'skip' }),

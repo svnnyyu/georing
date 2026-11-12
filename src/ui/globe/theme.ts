@@ -9,6 +9,8 @@ export interface GlobeTheme {
   graticule: string;
   coastWidth: number;
   borderWidth: number;
+  /** Dash and gap lengths (px) for disputed borders. */
+  disputedDash: number[];
   graticuleWidth: number;
   subdivisionLine: string;
   subdivisionWidth: number;
@@ -16,6 +18,9 @@ export interface GlobeTheme {
   ringFillOpacity: number;
   ringWidth: number;
   ringPastOpacity: number;
+  /** Older rings fade from ringPastOpacity down to ringOldOpacity over ringFadeRings rings. */
+  ringOldOpacity: number;
+  ringFadeRings: number;
   accent: string;
   hint: string;
   hintFillOpacity: number;
@@ -53,6 +58,7 @@ export function readGlobeTheme(el: Element = document.documentElement): GlobeThe
     graticule: color('--graticule'),
     coastWidth: num('--globe-coast-width'),
     borderWidth: num('--globe-border-width'),
+    disputedDash: [num('--globe-disputed-dash'), num('--globe-disputed-gap')],
     graticuleWidth: num('--globe-graticule-width'),
     subdivisionLine: color('--subdivision-line'),
     subdivisionWidth: num('--globe-subdivision-width', 0.6),
@@ -60,6 +66,8 @@ export function readGlobeTheme(el: Element = document.documentElement): GlobeThe
     ringFillOpacity: num('--ring-fill-opacity', 0.15),
     ringWidth: num('--ring-width'),
     ringPastOpacity: num('--ring-past-opacity', 0.35),
+    ringOldOpacity: num('--ring-old-opacity', 0.1),
+    ringFadeRings: num('--ring-fade-rings', 4),
     accent: color('--accent'),
     globeRestOffset: num('--globe-rest-offset', 0.6),
     hint: color('--hint'),

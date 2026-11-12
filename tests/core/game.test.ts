@@ -46,7 +46,8 @@ describe('settings', () => {
     expect(s.ringCount).toBe(RING_CAP);
     expect(s.guessesPerRing).toBe(GUESSES_PER_RING.max); // fixed at 3
     expect(s.measure).toBe('metro');
-    expect(sanitizeSettings({ ringWidthKm: 120 }).ringWidthKm).toBe(250); // the narrowest option
+    expect(sanitizeSettings({ ringWidthKm: 60 }).ringWidthKm).toBe(100); // the narrowest option
+    expect(sanitizeSettings({ ringWidthKm: 200 }).ringWidthKm).toBe(250);
     expect(sanitizeSettings({ ringCount: 'all' }).ringCount).toBe('all');
     expect(sanitizeSettings({ ringCount: 'lots' as never }).ringCount).toBe(3);
     expect(sanitizeSettings({ ringWidthKm: 1400 }).ringWidthKm).toBe(1500);
@@ -61,6 +62,7 @@ describe('ring count', () => {
     expect(resolveRingCount({ ringCount: 'all', ringWidthKm: 2000 })).toBe(10); // 20,000 km < 20,015
     expect(resolveRingCount({ ringCount: 'all', ringWidthKm: 1500 })).toBe(13); // 19,500 km; a 14th would pass it
     expect(resolveRingCount({ ringCount: 'all', ringWidthKm: 250 })).toBe(80);
+    expect(resolveRingCount({ ringCount: 'all', ringWidthKm: 100 })).toBe(200);
     expect(resolveRingCount({ ringCount: 4, ringWidthKm: 250 })).toBe(4);
     for (const w of [250, 500, 750, 1000, 1500, 2000]) {
       expect(resolveRingCount({ ringCount: 'all', ringWidthKm: w }) * w).toBeLessThanOrEqual(FAR_SIDE_KM);
@@ -200,7 +202,7 @@ describe('rings, hints and the end of the game', () => {
     s = useHint(data, s);
     expect(currentRingState(s).hints).toEqual({
       used: ['country'],
-      countries: { ccs: ['XX'], inRing: false, focus: expect.objectContaining({ lat: expect.any(Number) }) },
+      countries: { ccs: ['XX'], focus: expect.objectContaining({ lat: expect.any(Number) }) },
     });
     s = useHint(data, s);
     const areas = currentRingState(s).hints.areas!;

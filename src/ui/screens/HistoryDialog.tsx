@@ -112,7 +112,7 @@ export function HistoryDialog({
                     setConfirming(false);
                   }}
                 >
-                  Clear history
+                  Confirm
                 </button>
                 <button type="button" className="btn" onClick={() => setConfirming(false)}>
                   Cancel
@@ -120,7 +120,7 @@ export function HistoryDialog({
               </div>
             </div>
           ) : (
-            <button type="button" className="btn full" onClick={() => setConfirming(true)}>
+            <button type="button" className="btn full danger" onClick={() => setConfirming(true)}>
               Clear history
             </button>
           )}

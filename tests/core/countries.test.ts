@@ -88,6 +88,38 @@ describe('country rings', () => {
   });
 });
 
+describe('territories', () => {
+  // Tland is Bland's territory: its people count as Bland's, but rings keep them as their own area.
+  const pop = { ...grid({ BB: [[0.5, 3.5, 80_000]], TT: [[0.5, 1.5, 5_000]] }), territories: { TT: 'BB' } };
+  const countries: Record<string, Country> = { ...COUNTRIES, TT: { name: 'Tland', continent: 'AF', aliases: [] } };
+  const d = buildGameData({ cities: [START], metros: [], countries, population: pop });
+
+  it('count toward their country, as their own area in each ring', () => {
+    expect(d.countryUnits.map((c) => c.cc)).toEqual(['BB']);
+    expect(d.byId.get(id('BB'))!.pop).toBe(85_000);
+    const [ring1, ring2] = buildCountryRings(d.grid!, START, { widthKm: 200, ringCount: 2, excludeCc: null });
+    // Only Tland's 5,000 are within 200 km: Bland's label goes there
+    expect(ring1!.unitIds).toEqual([id('BB')]);
+    expect(ring1!.areas![0]).toEqual([expect.objectContaining({ cc: 'TT', pop: 5_000 })]);
+    expect(ring1!.points![0]!.lon).toBeCloseTo(1.5, 1);
+    expect(ring2!.areas![0]!.map((a) => a.cc)).toEqual(['BB']);
+  });
+
+  it('accept the country when only its territory is in the ring, and remember a guess typed as the territory', () => {
+    const game = () => newGame(d, { startCityId: 1, ringWidthKm: 200, ringCount: 2, mode: 'countries' }, 7, NOW);
+    // Typed as the country: right, since Tland's people are Bland's
+    let r = submitGuess(d, game(), id('BB'));
+    expect(r.outcome.kind).toBe('correct');
+    expect(currentRingState(r.state).guesses[0]).toEqual({ unitId: id('BB'), result: 'correct' });
+    // Typed as the territory: still Bland's guess, shown as Tland
+    r = submitGuess(d, game(), id('BB'), 'TT');
+    expect(currentRingState(r.state).guesses[0]).toEqual({ unitId: id('BB'), result: 'correct', area: 'TT' });
+    // A code that isn't one of the country's territories is ignored
+    r = submitGuess(d, game(), id('BB'), 'XX');
+    expect(currentRingState(r.state).guesses[0]!.area).toBeUndefined();
+  });
+});
+
 describe('a Countries game', () => {
   const start = () => newGame(data, { startCityId: 1, ringWidthKm: 500, ringCount: 3, mode: 'countries' }, 7, NOW);
 
@@ -112,7 +144,7 @@ describe('a Countries game', () => {
   it('hints: every country in the ring, then circles and letters where the people live', () => {
     let s = newGame(data, { startCityId: 1, ringWidthKm: 500, ringCount: 3, mode: 'countries', citiesToFind: 2 }, 7, NOW);
     s = useHint(data, s);
-    expect(currentRingState(s).hints.countries).toMatchObject({ ccs: ['XX', 'BB', 'AA', 'CC'], inRing: true });
+    expect(currentRingState(s).hints.countries).toMatchObject({ ccs: ['XX', 'BB', 'AA', 'CC'] });
     s = useHint(data, useHint(data, s));
     const h = currentRingState(s).hints;
     expect(h.areas!.map((a) => a.unitId)).toEqual([id('XX'), id('BB')]);
@@ -168,8 +200,58 @@ describe('Countries mode on the real data', () => {
     expect(name('png')).toBe('Papua New Guinea');
     expect(name('car')).toBe('Central African Republic');
     expect(name('uk')).toBe('United Kingdom');
+    // The two UN observer states, under either name
+    expect(name('Holy See')).toBe('Vatican');
+    expect(name('Vatican City')).toBe('Vatican');
+    expect(name('Palestine')).toBe('Palestine');
+    expect(name('State of Palestine')).toBe('Palestine');
+    expect(name('Palestinian Territory')).toBe('Palestine');
     // ...and GeoNames' wrong short codes are gone: "USA" was also South Africa's, "RU" the UK's.
     expect(name('USA')).toBe('United States');
     expect(name('ru')).not.toBe('United Kingdom');
+  });
+
+  it('plays the 193 UN members, the 2 observers and 3 disputed places; territories count for their country', async () => {
+    const { realData } = await import('./fixtures.ts');
+    const { data: real } = realData();
+    const ccs = new Set(real.countryUnits.map((c) => c.cc));
+    expect(ccs.size).toBe(198);
+    for (const cc of ['VA', 'PS', 'TW', 'XK', 'EH']) expect(ccs.has(cc), cc).toBe(true);
+    for (const cc of ['HK', 'MO', 'PR', 'GL', 'GU', 'NC']) expect(ccs.has(cc), cc).toBe(false);
+    // Hong Kong's and Macao's people count as China's (and their names match it)
+    expect(real.byId.get(countryUnitId('CN'))!.pop).toBeGreaterThan(1_425_000_000);
+    // Western Sahara is the whole territory south of 27°40'N, Laayoune and Dakhla included
+    // (Natural Earth's own map gives Morocco all but the strip east of the berm).
+    expect(real.byId.get(countryUnitId('EH'))!.pop).toBeGreaterThan(500_000);
+  });
+
+  it('accepts a territory as its country, and says so', async () => {
+    const { realData } = await import('./fixtures.ts');
+    const { buildMatchIndex, enterGuess, territoryTyped } = await import('../../src/core/matching.ts');
+    const { data: real } = realData();
+    const index = buildMatchIndex(real.countryUnits);
+    const enter = (t: string) => enterGuess(index, real, t, { measure: 'city', inRing: () => false });
+    for (const [typed, country, territory] of [
+      ['Puerto Rico', 'US', 'Puerto Rico'],
+      ['puerto rco', 'US', 'Puerto Rico'],
+      ['Hong Kong', 'CN', 'Hong Kong'],
+      ['Greenland', 'DK', 'Greenland'],
+      ['Saint Martin', 'FR', 'Saint Martin'],
+      ['Curaçao', 'NL', 'Curacao'],
+    ] as const) {
+      expect(enter(typed), typed).toMatchObject({ kind: 'correct', unitId: countryUnitId(country) });
+      expect(territoryTyped(real, typed, countryUnitId(country)), typed).toBe(territory);
+    }
+    // The country's own name (or a typo of it) gets no note
+    expect(territoryTyped(real, 'United States', countryUnitId('US'))).toBeNull();
+    expect(territoryTyped(real, 'Untied States', countryUnitId('US'))).toBeNull();
+    expect(territoryTyped(real, 'Puerto Rico', countryUnitId('FR'))).toBeNull();
+    // The suggestions list matches the start of a name: "berm" is Bermuda, the UK's; "unit"
+    // is the United Kingdom's own name, so no territory.
+    const { suggestions } = await import('../../src/core/matching.ts');
+    expect(suggestions(index, real, 'berm', 'city').map((x) => x.unitId)).toContain(countryUnitId('GB'));
+    expect(territoryTyped(real, 'berm', countryUnitId('GB'), true)).toBe('Bermuda');
+    expect(territoryTyped(real, 'unit', countryUnitId('GB'), true)).toBeNull();
+    expect(territoryTyped(real, 'berm', countryUnitId('GB'))).toBeNull();
   });
 });

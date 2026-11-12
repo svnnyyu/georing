@@ -18,6 +18,8 @@ export interface PreparedWorld {
   coast: Item[];
   lakes: Item[];
   borders: Item[];
+  /** Disputed borders, drawn dashed. */
+  disputedBorders: Item[];
   /** Country polygons by ISO code (cc), for the country hint. */
   countries: Map<string, Item[]>;
 }
@@ -115,6 +117,7 @@ export function prepareWorld(world: WorldLayers): PreparedWorld {
     lakes: polygons(world.lakes),
     countries: countriesByCode(world),
     borders: world.borders.coordinates.map((coordinates) => item({ type: 'LineString', coordinates })),
+    disputedBorders: world.disputedBorders.coordinates.map((coordinates) => item({ type: 'LineString', coordinates })),
   };
 }
 
