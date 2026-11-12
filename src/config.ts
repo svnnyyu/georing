@@ -135,6 +135,10 @@ export const EMPTY_RING_ADVANCE_MS = 1800; // "No cities in this ring" shows thi
 // Starting a game: the start screen's words leave, the globe rises, then the camera flies to the
 // start city, and the guess box slides in. (CSS reads these through variables set in App.tsx.)
 export const START_EXIT_MS = 600;
+// Page load: the globe rises from below the screen to its resting place (from GLOBE_FROM ×
+// the rest offset down), and the start screen comes in: the title drops in, then the tagline,
+// mode tiles, Start game and the settings line, each STAGGER_MS after the one before.
+export const INTRO = { globeMs: 1700, globeFrom: 2.2, itemMs: 650, firstDelayMs: 150, staggerMs: 110 } as const;
 export const GLOBE_RISE_MS = 1800;
 export const HUD_ENTER_MS = 450;
 // The first flight of a game (to the start city) always takes this long, wherever the city is;

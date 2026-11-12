@@ -19,14 +19,40 @@ export function AboutDialog({ onClose }: { onClose: () => void }) {
       <section>
         <SectionLabel>How to play</SectionLabel>
         <ul className="about-list">
-          <li>Rings are drawn around a start city. Name the most populous city inside each one.</li>
-          <li>
-            In Countries mode, name the country with the most people living inside the ring: only the part of it inside the
-            ring counts.
-          </li>
+          <li>Rings are drawn around a start city, one at a time. Name the answer for each ring.</li>
           <li>Wrong guesses inside the ring cost one of 3 misses; guesses outside it are free.</li>
-          <li>Stuck? The lightbulb gives up to 3 hints: the country, an area, then the city's dot and first letter.</li>
-          <li>Settings change the ring size, the number of rings, how many top cities to find, and city or metro populations.</li>
+          <li>
+            Stuck? The lightbulb gives up to 3 hints per ring. Each covers every answer you haven't found yet.
+          </li>
+        </ul>
+      </section>
+
+      <section>
+        <SectionLabel>Cities</SectionLabel>
+        <ul className="about-list">
+          <li>The answer is the most populous city inside the ring, by city or metro population (set in Settings).</li>
+          <li>Hints: the answers' countries, then a circle around each city, then each city's dot and first letter.</li>
+        </ul>
+      </section>
+
+      <section>
+        <SectionLabel>Countries</SectionLabel>
+        <ul className="about-list">
+          <li>
+            The answer is the country with the most people living inside the ring. Only the part of a country inside the ring
+            counts, so a big country that just clips the ring may lose to a small one.
+          </li>
+          <li>Hints: every country in the ring, then a circle where each answer's people live, then its first letter.</li>
+        </ul>
+      </section>
+
+      <section>
+        <SectionLabel>Settings</SectionLabel>
+        <ul className="about-list">
+          <li>
+            Ring size, number of rings (∞ keeps going until the far side of the Earth), and how many of each ring's top
+            answers to find.
+          </li>
         </ul>
       </section>
 

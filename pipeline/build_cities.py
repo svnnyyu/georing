@@ -129,6 +129,24 @@ def read_extra_aliases() -> dict[int, list[str]]:
     return out
 
 
+def read_country_aliases() -> dict[str, list[str]]:
+    """Hand-checked country abbreviations (DRC, UAE, KSA ...), from country_aliases.csv."""
+    out: dict[str, list[str]] = {}
+    with open(PIPELINE / "country_aliases.csv", encoding="utf-8") as f:
+        for row in csv.DictReader(f):
+            if row["cc"].strip():
+                out.setdefault(row["cc"].strip(), []).append(row["alias"].strip())
+    return out
+
+
+def is_short_code(alias: str) -> bool:
+    """An all-capitals abbreviation of up to 4 letters ("RU", "VK", "U.S.A."). GeoNames' country
+    abbreviations are often from other languages or wrong (the UK has "RU", South Africa
+    "USA"), so for countries only the hand-checked ones in country_aliases.csv are kept."""
+    letters = alias.replace(".", "").replace(" ", "")
+    return letters.isalpha() and letters.isupper() and len(letters) <= 4
+
+
 def city_key(name: str) -> str:
     """Matching key for Chinese names: 'Tai’an', 'Taian' and 'Ordos City' -> 'taian', 'ordos'."""
     n = normalize(name)
@@ -374,6 +392,7 @@ def main() -> None:
     ensure_raw()
     overrides = read_overrides()
     extra_aliases = read_extra_aliases()
+    country_aliases = read_country_aliases()
     countries = read_countries()
     admin1 = read_admin1()
     cities = read_cities(overrides)
@@ -423,11 +442,11 @@ def main() -> None:
         if not info:
             print(f"  warning: no countryInfo for {cc}")
             continue
-        alts = alt_names.get(info["geonameid"], [])
+        alts = [a for a in alt_names.get(info["geonameid"], []) if not is_short_code(a[0])]
         country_records[cc] = {
             "name": info["name"],
             "continent": info["continent"],
-            "aliases": pick_aliases([info["name"]], alts, info["langs"], []),
+            "aliases": pick_aliases([info["name"]], alts, info["langs"], country_aliases.get(cc, [])),
         }
 
     unknown_extra = set(extra_aliases) - {r["id"] for r in records}

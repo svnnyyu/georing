@@ -157,5 +157,17 @@ describe('Countries mode on the real data', () => {
     expect(name('usa')).toBe('United States');
     expect(name('Türkiye')).toBe('Turkey');
     expect(name('germny')).toBe('Germany');
+    // Hand-checked abbreviations (pipeline/country_aliases.csv)
+    expect(name('drc')).toBe('Democratic Republic of the Congo');
+    expect(name('DR Congo')).toBe('Democratic Republic of the Congo');
+    expect(name('uae')).toBe('United Arab Emirates');
+    expect(name('ksa')).toBe('Saudi Arabia');
+    expect(name('dprk')).toBe('North Korea');
+    expect(name('png')).toBe('Papua New Guinea');
+    expect(name('car')).toBe('Central African Republic');
+    expect(name('uk')).toBe('United Kingdom');
+    // ...and GeoNames' wrong short codes are gone: "USA" was also South Africa's, "RU" the UK's.
+    expect(name('USA')).toBe('United States');
+    expect(name('ru')).not.toBe('United Kingdom');
   });
 });

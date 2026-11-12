@@ -5,7 +5,7 @@
 // a game starts, zooms out to fit each new ring, and flies home when the game is left.
 
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type RefObject } from 'react';
-import { FLY_START_MS, GLOBE_RISE_MS, HINT_PAN_MS, HUD_ENTER_MS, START_EXIT_MS } from './config.ts';
+import { FLY_START_MS, GLOBE_RISE_MS, HINT_PAN_MS, HUD_ENTER_MS, INTRO, START_EXIT_MS } from './config.ts';
 import { cityOrThrow } from './core/data.ts';
 import { sphereCentre } from './core/geo.ts';
 import { loadData, type LoadedData } from './data/loadData.ts';
@@ -32,6 +32,9 @@ const timings = {
   '--globe-rise-ms': `${GLOBE_RISE_MS}ms`,
   '--hud-enter-ms': `${HUD_ENTER_MS}ms`,
   '--hud-enter-delay': `${GLOBE_RISE_MS}ms`,
+  '--intro-item-ms': `${INTRO.itemMs}ms`,
+  '--intro-first-delay': `${INTRO.firstDelayMs}ms`,
+  '--intro-stagger': `${INTRO.staggerMs}ms`,
 } as CSSProperties;
 
 /** What the game UI controls on the globe, which lives above it in App. */
@@ -65,6 +68,21 @@ export default function App() {
   const setGlobe = useCallback((patch: Partial<GlobeState>) => setState((s) => ({ ...s, ...patch })), []);
   const controls = useMemo(() => ({ globe, setGlobe, markers }), [setGlobe]);
 
+  // Once the intro has played, build the name indexes in a quiet moment, so the first guess
+  // or city search doesn't wait for them.
+  useEffect(() => {
+    if (!loaded) return;
+    const warm = () => {
+      loaded.index();
+      loaded.countryIndex();
+    };
+    const t = window.setTimeout(() => {
+      if ('requestIdleCallback' in window) window.requestIdleCallback(warm, { timeout: 2000 });
+      else warm();
+    }, INTRO.globeMs + INTRO.itemMs);
+    return () => window.clearTimeout(t);
+  }, [loaded]);
+
   useEffect(() => {
     loadData()
       .then(setLoaded)
@@ -77,6 +95,7 @@ export default function App() {
         <GlobeView
           ref={globe}
           lowered={!state.up}
+          ready={loaded !== null || error !== null}
           overlay={state.overlay}
           subdivisions={state.subdivisions}
           idleSpin={state.spin && !state.up}

@@ -2,10 +2,10 @@
 // and Clear history (with a confirmation step). Opening a game shows its summary, with
 // Replay this game.
 
-import { useState } from 'react';
-import { historyStats, type GameRecord } from '../../core/history.ts';
+import { useState, type CSSProperties } from 'react';
+import { gameScore, historyStats, type GameRecord } from '../../core/history.ts';
 import { SectionLabel } from '../components/Controls.tsx';
-import { GameSummary, ringSquare } from '../components/GameSummary.tsx';
+import { GameSummary } from '../components/GameSummary.tsx';
 import { Modal } from '../components/Modal.tsx';
 import { formatKm } from '../format.ts';
 import { useGame } from '../state/GameProvider.tsx';
@@ -82,11 +82,19 @@ export function HistoryDialog({
                       <br />
                       {playedAt(r)}
                     </span>
-                    <span className="row squares" aria-label={r.rings.map((x) => x.status).join(', ')}>
-                      {r.rings.map((x, k) => (
-                        <span key={k} className={ringSquare(x)} />
-                      ))}
-                    </span>
+                    {/* The score: found / to find, coloured from red (none) to green (all). */}
+                    {(() => {
+                      const { found, targets } = gameScore(r);
+                      return (
+                        <span
+                          className="num history-score"
+                          style={{ '--score': targets > 0 ? found / targets : 0 } as CSSProperties}
+                          aria-label={`${found} of ${targets} found`}
+                        >
+                          {found}/{targets}
+                        </span>
+                      );
+                    })()}
                   </button>
                 );
               })}

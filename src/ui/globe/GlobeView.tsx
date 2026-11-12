@@ -3,7 +3,7 @@
 // game layer (rings, markers) is passed in as data and handed to the globe.
 
 import { useEffect, useImperativeHandle, useRef, type Ref } from 'react';
-import { GLOBE_RISE_MS } from '../../config.ts';
+import { GLOBE_RISE_MS, INTRO } from '../../config.ts';
 import { loadSubdivisions, loadWorld } from '../../data/loadGeo.ts';
 import { Globe, type ViewInfo } from './globe.ts';
 import type { GlobeOverlay } from './overlay.ts';
@@ -29,6 +29,9 @@ export interface GlobeViewProps {
   /** Rest the globe low on the screen like a horizon (start screen); it rises and sinks
    *  smoothly when this changes. */
   lowered?: boolean;
+  /** Page load: the globe waits below the screen until this is true, then rises into view.
+   *  (It waits for the city data, so the rise doesn't stutter while the data is unpacked.) */
+  ready?: boolean;
   onViewChange?: (info: ViewInfo) => void;
   onMarkerHover?: (id: string | null, x: number, y: number) => void;
   onMarkerTap?: (id: string | null, x: number, y: number) => void;
@@ -43,6 +46,7 @@ export function GlobeView({
   subdivisions = false,
   idleSpin = false,
   lowered = false,
+  ready = true,
   onViewChange,
   onMarkerHover,
   onMarkerTap,
@@ -70,6 +74,8 @@ export function GlobeView({
     });
     globeRef.current = globe;
     globe.setOverlay(overlayRef.current);
+    // Page load: the globe waits below the screen until `ready`, then rises.
+    globe.holdBelow(INTRO.globeFrom);
     // Marker labels use the web font; redraw once it has loaded.
     void document.fonts?.ready.then(() => globe.refreshTheme());
     loadWorld('110m')
@@ -90,6 +96,12 @@ export function GlobeView({
   useEffect(() => {
     globeRef.current?.setOverlay(overlay);
   }, [overlay]);
+
+  useEffect(() => {
+    if (!ready) return;
+    const reduced = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+    globeRef.current?.rise(reduced ? 0 : INTRO.globeMs);
+  }, [ready]);
 
   useEffect(() => {
     globeRef.current?.setLowered(lowered, GLOBE_RISE_MS);

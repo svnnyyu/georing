@@ -7,9 +7,17 @@ import type { City, Country, LandMask, Metro, PopulationFile } from '../core/typ
 
 export interface LoadedData {
   data: GameData;
-  index: MatchIndex;
+  /** The city name index, built the first time it's needed (it takes a few hundred ms, so
+   *  it isn't built while the page is loading and animating; see App's warm-up). */
+  index: () => MatchIndex;
   /** Country names and aliases, for Countries mode. */
-  countryIndex: MatchIndex;
+  countryIndex: () => MatchIndex;
+}
+
+/** A value computed on first use and kept. */
+function lazy<T>(make: () => T): () => T {
+  let value: T | undefined;
+  return () => (value ??= make());
 }
 
 async function getJson<T>(path: string): Promise<T> {
@@ -42,5 +50,9 @@ export async function loadData(): Promise<LoadedData> {
     getJson<PopulationFile>('population.json'),
   ]);
   const data = buildGameData({ cities, metros, countries, land: decodeLand(land), population });
-  return { data, index: buildMatchIndex(cities), countryIndex: buildMatchIndex(data.countryUnits) };
+  return {
+    data,
+    index: lazy(() => buildMatchIndex(cities)),
+    countryIndex: lazy(() => buildMatchIndex(data.countryUnits)),
+  };
 }

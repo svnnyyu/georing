@@ -139,11 +139,61 @@
     0 0 24px color-mix(in srgb, var(--glitch-a) 25%, transparent);
 }
 
-/* Start screen enters with a short fade, and leaves when a game starts: the title and
-   tagline lift away, the button and summary drop away. Stepped easing for a pixel feel. */
+/* Start screen comes in on page load (and when back from a game): the title drops in from
+   above, then the tagline fades in and the mode tiles, Start game and settings line rise from
+   below, one after another (INTRO in config.ts). It leaves when a game starts: the title and
+   tagline lift away, the rest drops away. */
 .start-screen > * {
-  animation: fade-in 400ms var(--ease-out) both;
+  animation: intro-rise var(--intro-item-ms) var(--ease-out) both;
   will-change: transform, opacity; /* animate on the GPU, without re-laying out the page */
+}
+
+.start-screen > .hero-title {
+  animation-name: intro-drop;
+  animation-delay: var(--intro-first-delay);
+}
+
+.start-screen > .tagline {
+  animation-name: fade-in;
+  animation-delay: calc(var(--intro-first-delay) + var(--intro-stagger));
+}
+
+.start-screen > .start-modes {
+  animation-delay: calc(var(--intro-first-delay) + 2 * var(--intro-stagger));
+}
+
+.start-screen > .btn.hero {
+  animation-delay: calc(var(--intro-first-delay) + 3 * var(--intro-stagger));
+}
+
+.start-screen > .start-meta {
+  animation-delay: calc(var(--intro-first-delay) + 4 * var(--intro-stagger));
+}
+
+@keyframes intro-drop {
+  from {
+    opacity: 0;
+    transform: translateY(-48px);
+  }
+}
+
+@keyframes intro-rise {
+  from {
+    opacity: 0;
+    transform: translateY(32px);
+  }
+}
+
+/* Leaving starts at once, whatever the entrance's delays were. */
+.start-screen.leaving > * {
+  animation-delay: 0s;
+}
+
+/* Reduced motion: no entrances, the start screen and globe just appear. */
+@media (prefers-reduced-motion: reduce) {
+  .start-screen:not(.leaving) > * {
+    animation: none;
+  }
 }
 
 .start-screen.leaving .hero-title,
@@ -514,8 +564,13 @@
   outline: none;
 }
 
-.history-row .squares {
+/* (.num.history-score: stronger than the grey .log-row .num) */
+.history-row .num.history-score {
   flex: none;
+  font-size: var(--text-md);
+  /* --score (0 to 1, set per game): red for none found, through orange and yellow, to green
+     for all of them (mixed in OKLCH, so the hue goes round the warm side). */
+  color: color-mix(in oklch shorter hue, var(--correct) calc(var(--score, 0) * 100%), var(--wrong));
 }
 
 .tile-grid {

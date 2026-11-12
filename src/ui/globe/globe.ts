@@ -192,7 +192,20 @@ export class Globe {
     this.requestDraw();
   }
 
-  /** 1 = fully lowered, 0 = raised (eased). */
+  /** Page load: wait further down (lift `from`, past the bottom of the screen) until rise(). */
+  holdBelow(from: number): void {
+    this.lift = { from, to: from, t0: 0, ms: 0 };
+    this.requestDraw();
+  }
+
+  /** Rise from where it waits to the resting place over ms (0: jump there). */
+  rise(ms: number): void {
+    if (this.lift.to === 1 && this.lift.from === 1) return;
+    this.lift = { from: this.liftAt(performance.now()), to: 1, t0: performance.now(), ms };
+    this.requestDraw();
+  }
+
+  /** 1 = lowered to the resting place, 0 = raised; above 1 is further down (eased). */
   private liftAt(now: number): number {
     const { from, to, t0, ms } = this.lift;
     const t = ms > 0 ? Math.min(1, (now - t0) / ms) : 1;

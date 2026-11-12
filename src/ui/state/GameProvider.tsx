@@ -103,8 +103,9 @@ export function GameProvider({
   children,
 }: {
   data: GameData;
-  index: MatchIndex;
-  countryIndex: MatchIndex;
+  /** Built on first use (see loadData). */
+  index: () => MatchIndex;
+  countryIndex: () => MatchIndex;
   children: ReactNode;
 }) {
   const reducer = useMemo(() => makeReducer(data), [data]);
@@ -151,8 +152,13 @@ export function GameProvider({
   const value = useMemo<GameContextValue>(
     () => ({
       data,
-      index,
-      countryIndex,
+      // Built the first time a component asks (typing a guess, searching for a city).
+      get index() {
+        return index();
+      },
+      get countryIndex() {
+        return countryIndex();
+      },
       settings,
       setSettings: changeSettings,
       game: state.game,

@@ -9,6 +9,8 @@ import type { City, PopulationMeasure } from './types.ts';
 /** Lowercase, strip accents, hyphens/apostrophes to spaces, drop other punctuation,
  *  collapse whitespace. "São-Paulo" and "sao paulo" both become "sao paulo". */
 export function normalize(text: string): string {
+  // Most names are plain letters: skip the slower accent and punctuation steps for them.
+  if (/^[A-Za-z0-9 ]*$/.test(text)) return text.toLowerCase().replace(/\s+/g, ' ').trim();
   return text
     .normalize('NFD')
     .replace(/\p{M}/gu, '')
