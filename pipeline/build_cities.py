@@ -48,6 +48,13 @@ CN_UNLISTED_CAP = 750_000
 # edge are attached to it if within this distance.
 METRO_SNAP_MIN_POP = 100_000
 METRO_SNAP_KM = 5
+# GeoNames sometimes lists one place twice (Kashan, La Ceiba, Komárno). Two entries with the
+# same name, region and country are treated as one when they are this close, or have exactly
+# the same population (then one is usually a different small place that GeoNames gave the
+# other's figure, as with the two Sahiwals). The bigger one is kept; on a tie, the one GeoNames
+# ranks higher as an administrative seat (capital, then province, district... seat), then the
+# lower id.
+DUPLICATE_KM = 10
 
 
 # --- Shared numbers come from src/config.ts (the single place for tunables) ---
@@ -335,6 +342,34 @@ def ring_answers(cities: list[dict], start: dict, width: float, rings: int) -> l
 
 # --- Main ---
 
+# GeoNames feature codes, most important seat first.
+SEAT_RANK = {code: i for i, code in enumerate(["PPLC", "PPLA", "PPLA2", "PPLA3", "PPLA4", "PPLA5", "PPLG", "PPL"])}
+
+
+def remove_duplicates(cities: list[dict], overrides: dict[int, list[tuple[str, str]]]) -> list[dict]:
+    """Drops GeoNames double entries (see DUPLICATE_KM). Cities named in overrides.csv are
+    left alone: they were looked at by hand."""
+    groups: dict[tuple[str, str, str], list[dict]] = {}
+    for c in cities:
+        groups.setdefault((normalize(c["name"]), c["admin1Code"], c["cc"]), []).append(c)
+    drop: set[int] = set()
+    for group in groups.values():
+        if len(group) < 2:
+            continue
+        group.sort(key=lambda c: (-c["pop"], SEAT_RANK.get(c["fcode"], len(SEAT_RANK)), c["id"]))
+        keep = group[0]
+        for other in group[1:]:
+            if other["id"] in overrides:
+                continue
+            km = haversine_km(keep["lat"], keep["lon"], other["lat"], other["lon"])
+            if km <= DUPLICATE_KM or other["pop"] == keep["pop"]:
+                drop.add(other["id"])
+                print(f"  duplicate: {other['name']} ({other['cc']}) {other['id']} "
+                      f"pop {other['pop']:,}, {km:.0f} km from {keep['id']} pop {keep['pop']:,}")
+    print(f"Removed {len(drop)} duplicate entries")
+    return [c for c in cities if c["id"] not in drop]
+
+
 def main() -> None:
     ensure_raw()
     overrides = read_overrides()
@@ -350,6 +385,7 @@ def main() -> None:
             print(f"  capped: {c['name']} ({admin1.get('CN.' + c['admin1Code'], '')})")
     cities = [c for c in cities if c["pop"] >= MIN_POP]
     print(f"Kept {len(cities):,} cities (population >= {MIN_POP:,})")
+    cities = remove_duplicates(cities, overrides)
 
     country_ids = {c["geonameid"] for c in countries.values() if c["geonameid"]}
     alt_names = read_alternate_names({c["id"] for c in cities} | country_ids)

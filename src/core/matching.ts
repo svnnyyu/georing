@@ -192,19 +192,32 @@ export function enterGuess(index: MatchIndex, data: GameData, text: string, ctx:
     : { kind: 'correct', text: name, unitId: r.unitId };
 }
 
+export interface Suggestion {
+  unitId: number;
+  /** In Metro mode, the member city whose name matched when it isn't the unit itself
+   *  ("buen" -> Los Angeles via Buena Park), so the list can say why it's there. */
+  viaCityId: number | null;
+}
+
 /** The optional suggestions dropdown: up to SUGGESTIONS_MAX units from the whole world,
  *  ranked by prefix match, then fuzzy distance, then the population of the city whose name
  *  matched (see matchedPop). Never uses ring membership. */
 export function suggest(index: MatchIndex, data: GameData, text: string, measure: PopulationMeasure): number[] {
+  return suggestions(index, data, text, measure).map((s) => s.unitId);
+}
+
+/** suggest(), with the member city each suggestion was found through (see Suggestion). */
+export function suggestions(index: MatchIndex, data: GameData, text: string, measure: PopulationMeasure): Suggestion[] {
   const key = normalize(text);
   if (key.length < SUGGESTIONS_MIN_CHARS) return [];
-  // unit id -> its best match: score (lower is better), then matched population (higher is better)
-  const best = new Map<number, { s: number; pop: number }>();
+  // unit id -> its best match: score (lower is better), then matched population (higher is
+  // better), and the city whose name matched
+  const best = new Map<number, { s: number; pop: number; cityId: number }>();
   const consider = (e: NameEntry, s: number) => {
     const unitId = unitIdOf(data, measure, e.cityId);
     const pop = matchedPop(data, e);
     const old = best.get(unitId);
-    if (!old || s < old.s || (s === old.s && pop > old.pop)) best.set(unitId, { s, pop });
+    if (!old || s < old.s || (s === old.s && pop > old.pop)) best.set(unitId, { s, pop, cityId: e.cityId });
   };
   for (const [k, entries] of index.exact) {
     if (!k.startsWith(key)) continue;
@@ -222,5 +235,5 @@ export function suggest(index: MatchIndex, data: GameData, text: string, measure
   return [...best.entries()]
     .sort((a, b) => a[1].s - b[1].s || b[1].pop - a[1].pop)
     .slice(0, SUGGESTIONS_MAX)
-    .map(([id]) => id);
+    .map(([unitId, m]) => ({ unitId, viaCityId: m.cityId === unitId ? null : m.cityId }));
 }

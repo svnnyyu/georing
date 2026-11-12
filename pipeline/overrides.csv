@@ -137,3 +137,4 @@ geonameid,field,value,note
 285787,metroMain,1,Kuwait City: capital; main city of its urban centre instead of Hawalli
 292223,lat,25.2048,"Dubai: GeoNames point is in the desert south of the city; moved to downtown so it joins its urban centre"
 292223,lon,55.2708,
+3688452,remove,,"Buenaventura (CO): second entry 33 km south of the city with the whole municipality's population (432k); the city itself is 3688451"

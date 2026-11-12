@@ -10,7 +10,7 @@
 //   box. Enter with none highlighted fills the top suggestion.
 
 import { useMemo, useRef, useState } from 'react';
-import { enterGuess, normalize, suggest, type MatchContext } from '../../core/matching.ts';
+import { enterGuess, normalize, suggestions as findSuggestions, type MatchContext } from '../../core/matching.ts';
 import { placeOf } from '../format.ts';
 import { useGame } from '../state/GameProvider.tsx';
 
@@ -30,8 +30,10 @@ export function GuessInput({ inRing, onGuess }: { inRing: Set<number>; onGuess: 
   const inputRef = useRef<HTMLInputElement>(null);
 
   const ctx: MatchContext = useMemo(() => ({ measure, inRing: (id) => inRing.has(id) }), [measure, inRing]);
-  const suggestions = dropdown && open && !picker ? suggest(index, data, text, measure) : [];
-  const list = picker ?? suggestions;
+  const found = dropdown && open && !picker ? findSuggestions(index, data, text, measure) : [];
+  // Metro mode: the member city a suggestion was found through ("via Buena Park").
+  const via = new Map(found.map((s) => [s.unitId, s.viaCityId]));
+  const list = picker ?? found.map((s) => s.unitId);
   const chosenCity = chosen === null ? undefined : data.byId.get(chosen);
   const showsChosen = chosenCity !== undefined && normalize(text) === normalize(chosenCity.name);
 
@@ -148,7 +150,10 @@ export function GuessInput({ inRing, onGuess }: { inRing: Set<number>; onGuess: 
                     onClick={() => choose(id)}
                   >
                     <span>{c.name}</span>
-                    <span className="dim">{placeOf(data, id, { list: true, regions })}</span>
+                    <span className="dim">
+                      {via.get(id) ? `via ${data.byId.get(via.get(id)!)?.name} · ` : ''}
+                      {placeOf(data, id, { list: true, regions })}
+                    </span>
                   </button>
                 </li>
               );

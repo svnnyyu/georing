@@ -6,6 +6,7 @@ import {
   normalize,
   resolveGuess,
   suggest,
+  suggestions,
   type MatchContext,
 } from '../../src/core/matching.ts';
 import { idOf, nameOf, realData, synthetic } from './fixtures.ts';
@@ -184,6 +185,16 @@ describe('Metro mode ranks by the city whose name matched', () => {
     expect(names('santiago')[0]).toBe('Santiago');
     expect(names('santiago')).not.toContain('Mexico City');
     expect(names('sa')[0]).toBe('São Paulo');
+  });
+
+  it('says which member city a metro suggestion came through', () => {
+    const list = suggestions(index, data, 'buen', 'metro');
+    const la = list.find((x) => nameOf(data, x.unitId) === 'Los Angeles');
+    expect(la && nameOf(data, la.viaCityId)).toBe('Buena Park');
+    const ba = list.find((x) => nameOf(data, x.unitId) === 'Buenos Aires');
+    expect(ba?.viaCityId).toBeNull(); // matched by its own name
+    // One Buenaventura (Colombia): GeoNames' second, municipality-wide entry is removed.
+    expect(list.filter((x) => nameOf(data, x.unitId) === 'Buenaventura')).toHaveLength(1);
   });
 
   it('still resolves a member city to its metro when that is the only match', () => {
