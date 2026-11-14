@@ -47,7 +47,7 @@ Every ring in a game has the same width, set by the player, and the target in ea
 - The answer is the eligible city with the highest population in the ring.
 - An empty ring (all ocean, for example) shows "No cities in this ring" and advances automatically. It is recorded as empty, not as a miss.
 - Random start cities are drawn from the well-known pool (population ≥ 500,000 or a national capital), balanced across continents: first a continent, weighted by (number of start cities on it) ^ `CONTINENT_BALANCE_EXPONENT` (0.5), then a city in it. That gives roughly Asia 35%, Africa 17%, Europe 15%, North America 14%, South America 12%, Oceania 6%; purely proportional picks would put 57% of starts in Asia. Continents come from GeoNames `countryInfo.txt` and are stored in `countries.json`.
-- Countries mode skips a random start where every ring has the same answer (deep inside India, every ring is India): the next random pick is tried, up to `START_REPICKS` (30) times. Before this, 40% of random 3 × 500 km Countries games had one answer throughout (75% at 100 km, 15% at 1,000 km); after it, none in 1,000 seeds per setting. A start city the player chose is kept as it is, and so is a replay (it reuses the game's start city). As a side effect, starts deep inside the largest countries come up less often in Countries mode.
+- Countries mode skips a random start where one country is the answer in a run of consecutive rings covering more than half of the rings with an answer (`dominated` in `core/game.ts`; deep inside India, India, India, Pakistan): the next random pick is tried, up to `START_REPICKS` (100) times, and if none qualifies the try with the shortest run is played. Before this, 73% of random 3 × 500 km Countries games had such a run (94% at 3 × 100 km, 40% at 3 × 2,000 km); after it, none in 500 seeds per setting except 0.2% at 3 × 100 km. Setting up a game takes about 10–20 ms on average and at most about 0.12 s, helped by skipping population squares further north or south than the rings reach. A start city the player chose is kept as it is, and so is a replay (it reuses the game's start city). As a side effect, starts deep inside the largest countries come up less often in Countries mode.
 
 ### Metro mode
 
@@ -122,16 +122,16 @@ How they appear (from milestone 6): a hint button in the in-game box (a pixel li
 
 A summary screen shows each ring's answer, whether it was solved (and in how many guesses), missed or skipped, and the hints used. The game is saved to history as it finishes. Buttons: Play again (same settings, new seed), Main menu, and History (on phones Play again takes its own row).
 
-**Sharing.** A full-width **Share results** button sits under the ring list, on the summary and on a past game opened in History. It shares a short text with no answers in it (`core/share.ts`), for example:
+**Sharing.** A full-width **Share results** button sits under the ring list, on the summary and on a past game opened in History. It shares a short text (`core/share.ts`), for example:
 
 ```
-GeoRing 🌍 Cities
-📍 Paris · 3 rings of 500 km
-🟩🟨🟥
-2 of 3 rings solved · 💡 2
+GeoRing 🌍 Countries
+📍 🇹🇷 Bursa · 5 rings of 1,000 km
+🇹🇷🇪🇬❌🇵🇰🇮🇳
+4/5 rings solved · 💡 2
 ```
 
-One square per ring in the summary's colours (🟩 every target found, 🟨 some, 🟥 none, ⬜ an empty ring), `SHARE.squaresPerLine` (10) to a line and at most `SHARE.maxSquares` (50), then "+N more"; 💡 is the hints used, left out when none. On a phone (coarse pointer) it opens the system share sheet; elsewhere it copies the text (with an older copy method as a fallback) and the button says "Copied!" for `SHARE_COPIED_MS`.
+The start city has its country's flag. Then one emoji per ring, for at most `SHARE.maxRings` (10) rings on one line, the rest counted ("+8"): the flag of a solved ring's answer (the country itself, or in Cities mode the city's country), 🟨 when some of several targets were found, ❌ when none were, ⬜ for a ring with nothing in it. The score reads "4/5 rings solved" ("countries found" / "cities found" with several to find); 💡 is the hints used, left out when none. Flags are made from the two-letter country code; Windows shows them as the two letters. On a phone (coarse pointer) it opens the system share sheet; elsewhere it copies the text (with an older copy method as a fallback) and the button says "Copied!" for `SHARE_COPIED_MS`.
 
 ## Data
 

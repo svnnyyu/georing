@@ -211,13 +211,14 @@ describe('Countries mode on the real data', () => {
     expect(name('ru')).not.toBe('United Kingdom');
   });
 
-  it('skips random starts where every ring has the same answer, but keeps a chosen one', async () => {
+  it('skips random starts where one country answers most of the game in a row, but keeps a chosen one', async () => {
     const { realData, idOf } = await import('./fixtures.ts');
+    const { dominated } = await import('../../src/core/game.ts');
     const { data: real } = realData();
     const answers = (s: ReturnType<typeof newGame>) => new Set(s.rings.map((r) => r.answerId).filter((a) => a !== null));
     for (let seed = 1; seed <= 40; seed++) {
       const s = newGame(real, { ringWidthKm: 500, ringCount: 3, mode: 'countries' }, seed, NOW);
-      expect(answers(s).size, `seed ${seed}`).toBeGreaterThan(1);
+      expect(dominated(s.rings), `seed ${seed}`).toBe(false);
     }
     // Nagpur, in the middle of India: India in every ring, but the player chose it
     const s = newGame(real, { startCityId: idOf(real, 'Nagpur'), ringWidthKm: 500, ringCount: 3, mode: 'countries' }, 1, NOW);

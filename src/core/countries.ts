@@ -6,7 +6,7 @@
 // City-shaped entry (name, aliases, the centre of its people, its total population) so the
 // matching, history, reveal and summary code work unchanged.
 
-import { COUNTRY_MIN_PEOPLE_IN_RING } from '../config.ts';
+import { COUNTRY_MIN_PEOPLE_IN_RING, EARTH_RADIUS_KM } from '../config.ts';
 import { distanceKm, distanceOutsideKm, ringNumberFor, type LatLon } from './geo.ts';
 import type { City, Country, PopulationFile, Ring, RingArea } from './types.ts';
 
@@ -154,10 +154,14 @@ export interface CountryRingSpec {
 export function buildCountryRings(grid: CountryGrid, start: LatLon, spec: CountryRingSpec): Ring[] {
   type Acc = { pop: number; areas: Map<string, { pop: number; centre: Centre }> };
   const perRing = Array.from({ length: spec.ringCount }, () => new Map<string, Acc>());
+  // A square further north or south than the outermost ring reaches can't be in any ring: a
+  // cheap test that skips most of the world for small rings.
+  const maxLatDeg = (spec.widthKm * spec.ringCount * 180) / (Math.PI * EARTH_RADIUS_KM) + 1;
   for (const [cc, cells] of grid) {
     const u = unitCc(cc, cells);
     if (u === spec.excludeCc) continue;
     for (let i = 0; i < cells.pop.length; i++) {
+      if (Math.abs(cells.lat[i]! - start.lat) > maxLatDeg) continue;
       const p = { lat: cells.lat[i]!, lon: cells.lon[i]! };
       // People right at the start point are in ring 1 (a distance of 0 is "no ring" for cities).
       const k = ringNumberFor(Math.max(distanceKm(start, p), 1e-9), spec.widthKm, spec.ringCount);

@@ -18,7 +18,7 @@ import {
   useHint,
 } from '../../src/core/game.ts';
 import { distanceKm } from '../../src/core/geo.ts';
-import type { GameState } from '../../src/core/types.ts';
+import type { GameState, Ring } from '../../src/core/types.ts';
 import { realData, synthetic } from './fixtures.ts';
 
 const NOW = new Date('2026-11-11T12:00:00Z');
@@ -277,5 +277,19 @@ describe('finding several cities per ring', () => {
     // Finding a target keeps the hints (the globe drops that target's circle and letter).
     s = submitGuess(data, s, 2).state;
     expect(currentRingState(s).hints.areas).toHaveLength(2);
+  });
+});
+
+describe('one country answering most of a game', () => {
+  it('measures the longest run of the same answer', async () => {
+    const { dominated, longestRun } = await import('../../src/core/game.ts');
+    const rings = (answers: (number | null)[]) => answers.map((answerId) => ({ answerId }) as Ring);
+    expect(longestRun(rings([1, 1, 2]))).toBe(2);
+    expect(longestRun(rings([1, 2, 1]))).toBe(1);
+    expect(longestRun(rings([1, null, 1]))).toBe(1); // an empty ring breaks a run
+    expect(dominated(rings([1, 1, 2]))).toBe(true); // 2 of 3 in a row
+    expect(dominated(rings([1, 2, 1]))).toBe(false);
+    expect(dominated(rings([1, 1, 2, 3]))).toBe(false); // exactly half isn't more than half
+    expect(dominated(rings([1, 1, 1, 2]))).toBe(true);
   });
 });

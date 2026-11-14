@@ -125,10 +125,16 @@ export function newGame(data: GameData, settingsIn: Partial<Settings>, seed: num
     return { cityId, startId, rings };
   };
   let game = build(chosen ? settings.startCityId! : randomStartCity(data, seed));
-  // Countries mode: a random start where every ring has the same answer isn't much of a game;
-  // try the next random start (a chosen start city is kept as it is).
-  for (let attempt = 1; !chosen && countries && ringCount > 1 && oneAnswer(game.rings) && attempt <= START_REPICKS; attempt++) {
-    game = build(randomStartCity(data, seed, attempt));
+  // Countries mode: a random start where one country answers most of the game in a row isn't
+  // much of a game; try the next random start (a chosen start city is kept as it is), and
+  // failing that, play the try with the shortest run.
+  if (!chosen && countries && ringCount > 1) {
+    let best = game;
+    for (let attempt = 1; dominated(game.rings) && attempt <= START_REPICKS; attempt++) {
+      game = build(randomStartCity(data, seed, attempt));
+      if (longestRun(game.rings) < longestRun(best.rings)) best = game;
+    }
+    if (dominated(game.rings)) game = best;
   }
   const { cityId: startCityId, startId, rings } = game;
   const ringStates = rings.map(emptyRingState);
@@ -144,9 +150,21 @@ export function newGame(data: GameData, settingsIn: Partial<Settings>, seed: num
   };
 }
 
-/** Do all the rings with an answer have the same one? */
-function oneAnswer(rings: Ring[]): boolean {
-  return new Set(rings.map((r) => r.answerId).filter((id) => id !== null)).size <= 1;
+/** The most consecutive rings with the same answer (a ring with none breaks a run). */
+export function longestRun(rings: Ring[]): number {
+  let best = 0;
+  let run = 0;
+  rings.forEach((r, i) => {
+    run = r.answerId !== null && i > 0 && r.answerId === rings[i - 1]!.answerId ? run + 1 : r.answerId === null ? 0 : 1;
+    best = Math.max(best, run);
+  });
+  return best;
+}
+
+/** Does one country answer more than half the rings (those with an answer) in a row? */
+export function dominated(rings: Ring[]): boolean {
+  const answered = rings.filter((r) => r.answerId !== null).length;
+  return longestRun(rings) > answered / 2;
 }
 
 export function currentRing(state: GameState): Ring {

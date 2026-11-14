@@ -20,9 +20,10 @@ export const GUESSES_PER_RING = { min: 3, max: 3, step: 1, default: 3 } as const
 // Countries mode: a country counts as "in" a ring only with at least this many people inside
 // it (stray grid squares at a border shouldn't make it an answer).
 export const COUNTRY_MIN_PEOPLE_IN_RING = 1000;
-// Countries mode: a random start whose rings all have the same answer (deep inside India, every
-// ring is India) is skipped for another, up to this many tries.
-export const START_REPICKS = 30;
+// Countries mode: a random start where one country is the answer in a run of consecutive rings
+// covering more than half the game (deep inside India: India, India, Pakistan) is skipped for
+// another, up to this many tries; if none qualifies, the try with the shortest run is played.
+export const START_REPICKS = 100;
 // How many of each ring's most populous cities the player must find (the "targets").
 export const CITIES_TO_FIND = { min: 1, max: 5, step: 1, default: 1 } as const;
 
@@ -278,7 +279,7 @@ export type SoundName = keyof typeof SOUNDS;
 export const SUPPORT_URL = 'https://buy.stripe.com/5kQ00ceZ02v3485drads400';
 
 // --- Sharing results ---
-// The share text's ring squares: this many per line, and at most this many in all (an ∞ game
-// can have 200 rings; the rest are summed up as "+N more").
-export const SHARE = { squaresPerLine: 10, maxSquares: 50 } as const;
+// The share text shows one emoji per ring for at most this many rings, on one line; the rest
+// are counted ("+8").
+export const SHARE = { maxRings: 10 } as const;
 export const SHARE_COPIED_MS = 2000; // how long the button says "Copied!"

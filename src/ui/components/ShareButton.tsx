@@ -22,7 +22,10 @@ export function ShareButton({ record, className = 'btn' }: { record: GameRecord;
   };
 
   const share = async () => {
-    const text = shareText(record, { startName: data.byId.get(record.startId)?.name });
+    const text = shareText(record, {
+      startName: data.byId.get(record.startId)?.name,
+      ccOf: (id) => data.byId.get(id)?.cc,
+    });
     // The share sheet suits phones; on a computer, copying is what people expect.
     const phone = window.matchMedia?.('(pointer: coarse)').matches;
     if (phone && navigator.share) {
