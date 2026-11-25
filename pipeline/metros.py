@@ -6,11 +6,17 @@ people, measured the same way worldwide from satellite data (population for 2025
 
 Each city whose point lies inside an urban centre gets that metro. One member city is the
 metro's "main" city: it stands for the whole metro in Metro mode (Newark -> New York City).
+
+A few urban centres join cities that are usually counted as separate metros (the Pearl River
+Delta: Guangzhou and Shenzhen). pipeline/metro_splits.csv lists an anchor city for each part
+(and, with 'joins', a city placed by hand); every other member city joins its nearest anchor, and the centre's population is shared between the
+parts in proportion to their cities' own populations.
 Standard library only: GeoPackage is SQLite, and the geometry is parsed by hand.
 """
 
 from __future__ import annotations
 
+import csv
 import math
 import sqlite3
 import struct
@@ -19,6 +25,9 @@ import zipfile
 from pathlib import Path
 
 GHSL_DIR = Path(__file__).resolve().parent / "raw" / "ghsl"
+SPLITS_CSV = Path(__file__).resolve().parent / "metro_splits.csv"
+# Ids for the extra parts of a split centre: far above every GHSL id (about 12,000).
+SPLIT_ID_BASE = 1_000_000
 GHSL_ZIP = "GHS_UCDB_GLOBE_R2024A_V1_2.zip"
 GHSL_URL = ("https://jeodpp.jrc.ec.europa.eu/ftp/jrc-opendata/GHSL/GHS_UCDB_GLOBE_R2024A/"
             "GHS_UCDB_GLOBE_R2024A/V1-2/" + GHSL_ZIP)
@@ -159,6 +168,39 @@ def clean_name(name: str) -> str:
     return name.split("[")[0].strip()
 
 
+def haversine_km(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
+    r = math.pi / 180
+    a = (math.sin((lat2 - lat1) * r / 2) ** 2
+         + math.cos(lat1 * r) * math.cos(lat2 * r) * math.sin((lon2 - lon1) * r / 2) ** 2)
+    return 2 * 6371 * math.asin(math.sqrt(a))
+
+
+def split_anchors(cities: list[dict]) -> tuple[dict[int, list[dict]], dict[int, int]]:
+    """metro_splits.csv as (urban centre id -> its anchor cities, in file order: the first keeps
+    the centre's id; city id -> the anchor it is placed with by hand). Every anchor of a group
+    must lie in the same centre."""
+    by_id = {c["id"]: c for c in cities}
+    groups: dict[str, list[dict]] = {}
+    placed: dict[int, int] = {}
+    with SPLITS_CSV.open(encoding="utf-8") as f:
+        for row in csv.DictReader(f):
+            city = by_id.get(int(row["geonameid"]))
+            if not city:
+                raise SystemExit(f"metro_splits.csv: no city {row['geonameid']} ({row['note']})")
+            if row["joins"]:
+                placed[city["id"]] = int(row["joins"])
+            else:
+                groups.setdefault(row["group"], []).append(city)
+    out: dict[int, list[dict]] = {}
+    for name, anchors in groups.items():
+        ids = {a.get("metro") for a in anchors}
+        if len(ids) != 1 or None in ids:
+            raise SystemExit(f"metro_splits.csv: {name}'s anchors aren't in one urban centre: "
+                             + ", ".join(f"{a['name']} -> {a.get('metro')}" for a in anchors))
+        out[ids.pop()] = anchors
+    return out, placed
+
+
 def assign_metros(cities: list[dict], normalize, snap_min_pop: int, snap_km: float) -> tuple[list[dict], dict]:
     """Adds 'metro' (urban centre id) to each city inside one, and returns
     (metros, stats). Each metro: id, name, pop, main (city id), cc, members.
@@ -200,15 +242,41 @@ def assign_metros(cities: list[dict], normalize, snap_min_pop: int, snap_km: flo
             c["metro"] = hit["id"]
             members.setdefault(hit["id"], []).append(c)
 
-    metros = []
+    # Split centres: (centre id, name, population, member cities, anchor) per part
+    parts: list[tuple[int, str, int, list[dict], dict | None]] = []
+    splits, placed = split_anchors(cities)
     for uc in centres:
         group = members.get(uc["id"])
         if not group:
             continue
+        anchors = splits.get(uc["id"])
+        if not anchors:
+            parts.append((uc["id"], clean_name(uc["name"]), uc["pop"], group, None))
+            continue
+        by_anchor: dict[int, list[dict]] = {a["id"]: [] for a in anchors}
+        for c in group:
+            if placed.get(c["id"]) in by_anchor:
+                by_anchor[placed[c["id"]]].append(c)
+                continue
+            nearest = min(anchors, key=lambda a: haversine_km(c["lat"], c["lon"], a["lat"], a["lon"]))
+            by_anchor[nearest["id"]].append(c)
+        total = sum(c["pop"] for c in group)
+        for k, a in enumerate(anchors):
+            sub = by_anchor[a["id"]]
+            share = sum(c["pop"] for c in sub) / total
+            pid = uc["id"] if k == 0 else SPLIT_ID_BASE + uc["id"] * 10 + k
+            for c in sub:
+                c["metro"] = pid
+            parts.append((pid, a["name"], round(uc["pop"] * share), sub, a))
+            print(f"  split {clean_name(uc['name'])}: {a['name']} {round(uc['pop'] * share):,} "
+                  f"({len(sub)} cities: {', '.join(c['name'] for c in sorted(sub, key=lambda c: -c['pop'])[:4])})")
+
+    metros = []
+    for uid, uc_label, uc_pop, group, anchor in parts:
         largest = max(group, key=lambda c: c["pop"])
         main = largest
-        uc_name = normalize(clean_name(uc["name"]))
-        forced = [c for c in group if c.get("metroMain")]
+        uc_name = normalize(uc_label)
+        forced = [anchor] if anchor else [c for c in group if c.get("metroMain")]
         if forced:
             main = forced[0]
         else:
@@ -219,14 +287,15 @@ def assign_metros(cities: list[dict], normalize, snap_min_pop: int, snap_km: flo
                     break
         # A metro is never smaller than its main city. GHSL's density method undercounts some
         # cities (Chengdu: 5.6M urban centre vs 13.6M census urban population).
-        pop = max(uc["pop"], main["pop"])
-        metros.append({"id": uc["id"], "name": clean_name(uc["name"]), "pop": pop, "ghslPop": uc["pop"],
+        pop = max(uc_pop, main["pop"])
+        metros.append({"id": uid, "name": uc_label, "pop": pop, "ghslPop": uc_pop,
                        "main": main["id"], "cc": main["cc"], "members": len(group)})
     stats = {
         "centres": len(centres),
         "with_cities": len(metros),
         "without_cities": len(centres) - len(metros),
         "pop_without_cities": sum(uc["pop"] for uc in centres if uc["id"] not in members),
+        "splits": sum(1 for p in parts if p[4] is not None),
         "cities_in_metros": sum(len(g) for g in members.values()),
         "snapped": snapped,
     }

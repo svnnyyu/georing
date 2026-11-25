@@ -1,0 +1,8 @@
+group,geonameid,joins,note
+Pearl River Delta,1809858,,"Guangzhou: with Foshan, Zhongshan and Jiangmen"
+Pearl River Delta,1795565,,"Shenzhen: GHSL joins the whole delta into one 43M urban centre"
+Pearl River Delta,1812545,1795565,"Dongguan: usually counted with Shenzhen, though its point is a little nearer Guangzhou"
+Suzhou-Wuxi,1886760,,Suzhou (Jiangsu)
+Suzhou-Wuxi,1790923,,"Wuxi (Jiangsu): its own city, joined to Suzhou by GHSL's built-up area"
+Hangzhou-Shaoxing,1808926,,Hangzhou
+Hangzhou-Shaoxing,1795855,,"Shaoxing: its own city, joined to Hangzhou by GHSL's built-up area"

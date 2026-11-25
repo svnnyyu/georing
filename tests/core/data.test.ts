@@ -36,6 +36,22 @@ describe('units', () => {
 });
 
 describe('real data', () => {
+  it('splits urban areas that join separate cities (pipeline/metro_splits.csv)', () => {
+    const { data } = realData();
+    const unit = (name: string) => data.byId.get(unitIdOf(data, 'metro', idOf(data, name, 'CN')))!.name;
+    // GHSL joins the whole Pearl River Delta; Guangzhou and Shenzhen are separate metros here
+    expect(unit('Shenzhen')).toBe('Shenzhen');
+    expect(unit('Dongguan')).toBe('Shenzhen');
+    expect(unit('Foshan')).toBe('Guangzhou');
+    expect(unit('Wuxi')).toBe('Wuxi');
+    expect(unit('Shaoxing')).toBe('Shaoxing');
+    const gz = unitPop(data, 'metro', idOf(data, 'Guangzhou', 'CN'));
+    const sz = unitPop(data, 'metro', idOf(data, 'Shenzhen', 'CN'));
+    expect(gz).toBeGreaterThan(20_000_000);
+    expect(sz).toBeGreaterThan(18_000_000);
+    expect(gz + sz).toBeLessThan(44_000_000); // the delta's people, shared out, not counted twice
+  });
+
   it('merges Newark into New York City in Metro mode', () => {
     const { data } = realData();
     const nyc = idOf(data, 'New York City');
