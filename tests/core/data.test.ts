@@ -36,20 +36,23 @@ describe('units', () => {
 });
 
 describe('real data', () => {
-  it('splits urban areas that join separate cities (pipeline/metro_splits.csv)', () => {
+  it('uses commuting zones as metros, so suburbs and neighbouring cities count', () => {
     const { data } = realData();
-    const unit = (name: string) => data.byId.get(unitIdOf(data, 'metro', idOf(data, name, 'CN')))!.name;
-    // GHSL joins the whole Pearl River Delta; Guangzhou and Shenzhen are separate metros here
-    expect(unit('Shenzhen')).toBe('Shenzhen');
-    expect(unit('Dongguan')).toBe('Shenzhen');
-    expect(unit('Foshan')).toBe('Guangzhou');
-    expect(unit('Wuxi')).toBe('Wuxi');
-    expect(unit('Shaoxing')).toBe('Shaoxing');
-    const gz = unitPop(data, 'metro', idOf(data, 'Guangzhou', 'CN'));
-    const sz = unitPop(data, 'metro', idOf(data, 'Shenzhen', 'CN'));
-    expect(gz).toBeGreaterThan(20_000_000);
-    expect(sz).toBeGreaterThan(18_000_000);
-    expect(gz + sz).toBeLessThan(44_000_000); // the delta's people, shared out, not counted twice
+    const unit = (name: string, cc: string) => data.byId.get(unitIdOf(data, 'metro', idOf(data, name, cc)))!.name;
+    const pop = (name: string, cc: string) => unitPop(data, 'metro', idOf(data, name, cc));
+    // The dense core alone was 0.6M: most of Atlanta's people live in low-density suburbs
+    expect(pop('Atlanta', 'US')).toBeGreaterThan(5_500_000);
+    expect(pop('Chicago', 'US')).toBeGreaterThan(8_500_000);
+    expect(unit('Fort Worth', 'US')).toBe('Dallas');
+    expect(unit('Mesa', 'US')).toBe('Phoenix');
+    expect(unit('Marietta', 'US')).toBe('Atlanta');
+    // The Pearl River Delta's commuting zones keep its cities apart
+    expect(unit('Shenzhen', 'CN')).toBe('Shenzhen');
+    expect(unit('Foshan', 'CN')).toBe('Guangzhou');
+    expect(unit('Dongguan', 'CN')).toBe('Dongguan');
+    // ... and pipeline/metro_splits.csv separates two that GHSL joins
+    expect(unit('Wuxi', 'CN')).toBe('Wuxi');
+    expect(unit('Shaoxing', 'CN')).toBe('Shaoxing');
   });
 
   it('merges Newark into New York City in Metro mode', () => {

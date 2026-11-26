@@ -44,7 +44,7 @@ EARTH_RADIUS_KM = 6371.0
 # this (citypopulation.de lists every city above it), but GeoNames often gives the whole
 # prefecture. Interim upper bound until real figures are found; see docs/SPEC.md.
 CN_UNLISTED_CAP = 750_000
-# Metro join (see metros.py): big cities whose point sits just outside an urban centre's
+# Metro join (see metros.py): big cities whose point sits just outside a metro (functional urban area)'s
 # edge are attached to it if within this distance.
 METRO_SNAP_MIN_POP = 100_000
 METRO_SNAP_KM = 5
@@ -522,8 +522,8 @@ def metro_units(records: list[dict], metros: list[dict]) -> tuple[list[dict], di
 def metro_report(records: list[dict], metros: list[dict], stats: dict) -> None:
     by_id = {r["id"]: r for r in records}
     size_kb = (OUT / "metros.json").stat().st_size / 1e3
-    print("\n=== Metro report (GHSL urban centres) ===")
-    print(f"Urban centres: {stats['centres']:,}; with at least one city: {stats['with_cities']:,}; "
+    print("\n=== Metro report (GHSL functional urban areas: urban centre + commuting zone) ===")
+    print(f"Functional urban areas: {stats['centres']:,}; with at least one city: {stats['with_cities']:,}; "
           f"without: {stats['without_cities']:,} ({stats['pop_without_cities'] / 1e6:.0f}M people, not playable "
           f"in Metro mode). Cities inside a metro: {stats['cities_in_metros']:,} "
           f"({stats['snapped']} snapped from just outside). metros.json: {size_kb:.0f} KB")

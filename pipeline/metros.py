@@ -1,16 +1,20 @@
-"""Join cities to GHSL urban centres ("metros") by point-in-polygon.
+"""Join cities to GHSL Functional Urban Areas ("metros") by point-in-polygon.
 
-Used by build_cities.py. Source: GHSL Urban Centre Database R2024A (CC BY 4.0), downloaded
-into pipeline/raw/ghsl/. An urban centre is a continuous built-up area of at least 50,000
-people, measured the same way worldwide from satellite data (population for 2025).
+Used by build_cities.py. A Functional Urban Area (GHS-FUA R2019A, CC BY 4.0) is an urban centre
+(a continuous built-up area of at least 50,000 people) plus the commuting zone around it, drawn
+the same way worldwide, so Atlanta's suburbs count as Atlanta and Fort Worth joins Dallas. The
+outlines are from the dataset (pipeline/raw/ghsl/fua/); their 2025 populations come from
+fua_2025.csv, which build_fua.py sums from the 2025 population grid. (Metro mode first used the
+urban centres alone, GHSL UCDB R2024A, which leave out most low-density suburbs: Atlanta was
+0.6M. load_urban_centres() still reads them.)
 
-Each city whose point lies inside an urban centre gets that metro. One member city is the
-metro's "main" city: it stands for the whole metro in Metro mode (Newark -> New York City).
+Each city whose point lies inside an area gets that metro. One member city is the metro's
+"main" city: it stands for the whole metro in Metro mode (Newark -> New York City).
 
-A few urban centres join cities that are usually counted as separate metros (the Pearl River
-Delta: Guangzhou and Shenzhen). pipeline/metro_splits.csv lists an anchor city for each part
-(and, with 'joins', a city placed by hand); every other member city joins its nearest anchor, and the centre's population is shared between the
-parts in proportion to their cities' own populations.
+A few areas join cities that are usually counted as separate metros (Suzhou and Wuxi).
+pipeline/metro_splits.csv lists an anchor city for each part (and, with 'joins', a city placed
+by hand); every other member city joins its nearest anchor, and the area's population is shared
+between the parts in proportion to their cities' own populations.
 Standard library only: GeoPackage is SQLite, and the geometry is parsed by hand.
 """
 
@@ -26,6 +30,11 @@ from pathlib import Path
 
 GHSL_DIR = Path(__file__).resolve().parent / "raw" / "ghsl"
 SPLITS_CSV = Path(__file__).resolve().parent / "metro_splits.csv"
+# Functional Urban Areas (urban centre + commuting zone): the metros Metro mode uses. Their
+# 2025 populations come from fua_2025.csv, made by build_fua.py.
+FUA_GPKG = GHSL_DIR / "fua" / "GHS_FUA_UCDB2015_GLOBE_R2019A_54009_1K_V1_0.gpkg"
+FUA_TABLE = "GHS_FUA_UCDB2015_GLOBE_R2019A_54009_1K_V1_0"
+FUA_POP_CSV = Path(__file__).resolve().parent / "fua_2025.csv"
 # Ids for the extra parts of a split centre: far above every GHSL id (about 12,000).
 SPLIT_ID_BASE = 1_000_000
 GHSL_ZIP = "GHS_UCDB_GLOBE_R2024A_V1_2.zip"
@@ -153,6 +162,32 @@ def load_urban_centres() -> list[dict]:
     return centres
 
 
+def load_fuas() -> list[dict]:
+    """Functional Urban Areas, in the same shape as load_urban_centres(), with 2025 populations
+    from fua_2025.csv."""
+    if not FUA_GPKG.exists() or not FUA_POP_CSV.exists():
+        raise SystemExit(f"{FUA_GPKG.name} or {FUA_POP_CSV.name} is missing: run "
+                         "pipeline/.venv/bin/python pipeline/build_fua.py first.")
+    with FUA_POP_CSV.open(encoding="utf-8") as f:
+        pops = {int(r["id"]): int(r["pop2025"]) for r in csv.DictReader(f)}
+    db = sqlite3.connect(FUA_GPKG)
+    areas = []
+    for fid, name, geom in db.execute(f'SELECT eFUA_ID, eFUA_name, geom FROM "{FUA_TABLE}"'):
+        if geom is None or int(fid) not in pops:
+            continue
+        polygons = parse_gpkg_geometry(geom)
+        xs = [x for poly in polygons for x, _ in poly[0]]
+        ys = [y for poly in polygons for _, y in poly[0]]
+        areas.append({
+            "id": int(fid),
+            "name": fix_text(name),
+            "pop": pops[int(fid)],
+            "polygons": polygons,
+            "bbox": (min(xs), min(ys), max(xs), max(ys)),
+        })
+    return areas
+
+
 def distance_to_rings(x: float, y: float, rings: list[Ring]) -> float:
     best = math.inf
     for ring in rings:
@@ -207,7 +242,7 @@ def assign_metros(cities: list[dict], normalize, snap_min_pop: int, snap_km: flo
     Cities of snap_min_pop or more that sit just outside a centre (within snap_km of its
     edge, e.g. Dubai's GeoNames point) are attached to the nearest one. A city with
     'metroMain' set (from overrides.csv) is always its metro's main city."""
-    centres = load_urban_centres()
+    centres = load_fuas()
     grid: dict[tuple[int, int], list[dict]] = {}
     for uc in centres:
         x0, y0, x1, y1 = uc["bbox"]

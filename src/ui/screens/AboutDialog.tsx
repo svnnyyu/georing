@@ -65,9 +65,9 @@ export function AboutDialog({ onClose }: { onClose: () => void }) {
             <Ext href="https://creativecommons.org/licenses/by/4.0/">CC BY 4.0</Ext>.
           </li>
           <li>
-            Metro areas: GHS Urban Centre Database R2024A, European Commission, Joint Research Centre (2024),{' '}
-            <Ext href="https://doi.org/10.2905/1a338be6-7eaf-480c-9664-3a8ade88cbcd">doi:10.2905/1a338be6</Ext>. © European
-            Union, reused with acknowledgement.
+            Metro areas: GHS Functional Urban Areas R2019A, European Commission, Joint Research Centre (2019),{' '}
+            <Ext href="https://doi.org/10.2905/347F0337-F2DA-4592-87B3-E25975EC2C95">doi:10.2905/347f0337</Ext>, with 2025
+            populations summed from the GHS-POP grid below. © European Union, reused with acknowledgement.
           </li>
           <li>
             People inside each ring (Countries mode): GHS-POP R2023A population grid, European Commission, Joint Research
